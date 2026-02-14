@@ -1,27 +1,37 @@
 const Complaint = require("../models/Complaint");
 
 // Create Complaint
-const createComplaint = async (req, res , next) => {
+const createComplaint = async (req, res, next) => {
   try {
-    const complaint = await Complaint.create(req.body);
-    res.status(201).json(complaint);
-  }
-  catch (error) {
-  next(error);
-}
+    const complaint = await Complaint.create({
+      ...req.body,
+      user: req.user._id
+    });
 
+    res.status(201).json(complaint);
+  } catch (error) {
+    next(error);
+  }
 };
+
 
 // Get All Complaints
-const getAllComplaints = async (req, res , next) => {
+const getAllComplaints = async (req, res, next) => {
   try {
-    const complaints = await Complaint.find();
+    let complaints;
+
+    if (req.user.role === "admin") {
+      complaints = await Complaint.find().populate("user", "name email");
+    } else {
+      complaints = await Complaint.find({ user: req.user._id });
+    }
+
     res.json(complaints);
   } catch (error) {
-  next(error);
-}
-
+    next(error);
+  }
 };
+
 
 // Update Status
 const updateComplaintStatus = async (req, res , next) => {
