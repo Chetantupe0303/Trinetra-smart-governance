@@ -59,6 +59,7 @@ const loginUser = async (req, res, next) => {
       token
     });
   } catch (error) {
+    console.error(error);
     next(error);
   }
 };

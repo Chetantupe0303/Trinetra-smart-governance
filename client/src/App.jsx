@@ -1,3 +1,4 @@
+import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -9,15 +10,24 @@ import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import Navbar from "./components/Navbar";
 
+import { useContext } from "react";
+import { AuthContext } from "./context/AuthContext";
+import { Navigate } from "react-router-dom";
 
 function App() {
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) return null;
+
   return (
     <BrowserRouter>
-
-     <Navbar />
-     
+      <Navbar />
       <Routes>
-        <Route path="/" element={<Login />} />
+        <Route
+          path="/"
+          element={user ? <Navigate to="/dashboard" /> : <Login />}
+        />
+
         <Route path="/register" element={<Register />} />
 
         <Route
@@ -50,5 +60,6 @@ function App() {
     </BrowserRouter>
   );
 }
+
 
 export default App;

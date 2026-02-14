@@ -10,7 +10,10 @@ const errorHandler = require("./middleware/errorMiddleware");
 
 connectDB();
 
+// app.use(cors());
 const app = express();
+
+
 
 
 
