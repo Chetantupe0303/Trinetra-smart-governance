@@ -1,3 +1,4 @@
+import React from "react";
 function ComplaintCard({ complaint }) {
   return (
     <div style={{

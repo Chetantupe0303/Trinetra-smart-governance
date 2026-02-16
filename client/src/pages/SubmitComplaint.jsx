@@ -1,15 +1,32 @@
-import React, { useContext } from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import API from "../services/apiService";
 
+import StepIndicator from "../components/StepIndicator";
+import CategoryStep from "../components/CategoryStep";
+import DetailsStep from "../components/DetailsStep";
+import LocationStep from "../components/LocationStep";
+import ReviewStep from "../components/ReviewStep";
 
 function SubmitComplaint() {
+
+  const [step, setStep] = useState(1);
+
+  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [image, setImage] = useState(null);
+  const [location, setLocation] = useState("");
+
+  const nextStep = () => setStep(prev => prev + 1);
+  const prevStep = () => setStep(prev => prev - 1);
 
   const handleSubmit = async () => {
     try {
       await API.post("/complaints", {
+        category,
         description,
+        priority,
+        location
       });
 
       alert("Complaint submitted");
@@ -19,40 +36,56 @@ function SubmitComplaint() {
   };
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-6 py-16">
-    
-    <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl border border-slate-100 p-10">
+    <div className="min-h-screen bg-gray-100 p-6">
 
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-800">
-          Submit Complaint
-        </h2>
-        <p className="text-slate-500 mt-2">
-          Describe your issue clearly so we can help you faster.
-        </p>
+      <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
+
+        <StepIndicator step={step} />
+
+        {step === 1 && (
+          <CategoryStep
+            category={category}
+            setCategory={setCategory}
+            nextStep={nextStep}
+          />
+        )}
+
+        {step === 2 && (
+          <DetailsStep
+            description={description}
+            setDescription={setDescription}
+            priority={priority}
+            setPriority={setPriority}
+            image={image}
+            setImage={setImage}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        )}
+
+        {step === 3 && (
+          <LocationStep
+            location={location}
+            setLocation={setLocation}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        )}
+
+        {step === 4 && (
+          <ReviewStep
+            category={category}
+            description={description}
+            priority={priority}
+            location={location}
+            prevStep={prevStep}
+            handleSubmit={handleSubmit}
+          />
+        )}
+
       </div>
-
-      <div className="space-y-6">
-        <textarea
-          placeholder="Describe the issue..."
-          onChange={(e) => setDescription(e.target.value)}
-          rows="6"
-          className="w-full resize-none px-5 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-300 text-slate-700"
-        />
-
-        <button
-          onClick={handleSubmit}
-          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 active:scale-95 text-white py-3 rounded-2xl font-semibold shadow-lg transition-all duration-300"
-        >
-          Submit Complaint
-        </button>
-      </div>
-
     </div>
-
-  </div>
-);
-
+  );
 }
 
 export default SubmitComplaint;
