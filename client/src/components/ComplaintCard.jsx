@@ -8,6 +8,20 @@ function ComplaintCard({ complaint }) {
       borderRadius: "8px",
       backgroundColor: "#fff"
     }}>
+      
+      <div className="border rounded-xl p-4">
+      <h3>{complaint.title}</h3>
+      <p>{complaint.description}</p>
+
+      {/* Display Base64 Image */}
+      {complaint.image?.data && (
+        <img
+          src={complaint.image.data}
+          alt="Complaint"
+          className="w-full max-w-md rounded-lg mt-4"
+        />
+      )}
+    </div>
       <h4>{complaint.description}</h4>
 
       <p>
@@ -44,6 +58,9 @@ function ComplaintCard({ complaint }) {
         Created: {new Date(complaint.createdAt).toLocaleString()}
       </p>
     </div>
+
+        
+
   );
 }
 
