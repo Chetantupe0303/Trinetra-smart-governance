@@ -17,13 +17,18 @@ const complaintSchema = new mongoose.Schema(
       type: String
     },
     category: {
-      type: String
+      type: String,
+      enum: ["Water", "Electricity", "Road", "Sanitation", "Other"],
+      required: true
     },
     priority: {
-      type: String
+      type: String,
+      enum: ["Low", "Medium", "High"],
+      default: "Medium"
     },
     status: {
       type: String,
+      enum: ["Pending", "In Progress", "Resolved", "Rejected"],
       default: "Pending"
     },
     location: {

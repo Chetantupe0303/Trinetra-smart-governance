@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -34,70 +35,59 @@ function Login() {
     }
   };
 
-  return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <h2 style={{ marginBottom: "20px" }}>Smart Urban Governance</h2>
+ return (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 px-6">
+
+    <div className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-3xl p-10">
+
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-white tracking-tight">
+          Welcome Back
+        </h2>
+        <p className="text-slate-300 text-sm mt-2">
+          Sign in to continue to Smart Urban Governance
+        </p>
+      </div>
+
+      <div className="space-y-6">
 
         <input
-          style={inputStyle}
           type="email"
           placeholder="Enter Email"
           onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-5 py-3 rounded-xl bg-white/20 text-white placeholder-slate-300 border border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
         />
 
         <input
-          style={inputStyle}
           type="password"
           placeholder="Enter Password"
           onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-5 py-3 rounded-xl bg-white/20 text-white placeholder-slate-300 border border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
         />
 
-        <button style={buttonStyle} onClick={handleLogin}>
+        <button
+          onClick={handleLogin}
+          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-90 active:scale-95 text-white py-3 rounded-xl font-semibold shadow-lg transition-all duration-300"
+        >
           Login
         </button>
-
-        <p style={{ marginTop: "15px" }}>
-          Don't have an account? <Link to="/register">Register</Link>
-        </p>
       </div>
+
+      <p className="text-center text-sm text-slate-300 mt-8">
+        Don’t have an account?{" "}
+        <Link
+          to="/register"
+          className="text-indigo-400 hover:text-indigo-300 font-medium transition"
+        >
+          Register
+        </Link>
+      </p>
+
     </div>
-  );
+  </div>
+);
+
+
 }
-
-const containerStyle = {
-  height: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  backgroundColor: "#f4f6f9"
-};
-
-const cardStyle = {
-  backgroundColor: "#ffffff",
-  padding: "40px",
-  borderRadius: "10px",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-  width: "350px",
-  textAlign: "center"
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  marginBottom: "15px",
-  borderRadius: "6px",
-  border: "1px solid #ccc"
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "10px",
-  borderRadius: "6px",
-  border: "none",
-  backgroundColor: "#007bff",
-  color: "white",
-  cursor: "pointer"
-};
 
 export default Login;
