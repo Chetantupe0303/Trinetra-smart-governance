@@ -47,9 +47,13 @@ def classify_image():
 
     with torch.no_grad():
         outputs = model(image)
-        _, predicted = torch.max(outputs, 1)
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        confidence, predicted = torch.max(probabilities, 1)
 
-    return jsonify({"classification": classname[int(predicted.item())]})
+    return jsonify({
+        "classification": classnames[int(predicted.item())],
+        "confidence": float(confidence.item())
+    })
 
 
 @app.route("/classify-text", methods=["POST"])
@@ -64,5 +68,8 @@ def classify_text():
 
     result = text_classifier(text, candidate_labels)
 
-    return jsonify({"classification": result["labels"][0]})
+    return jsonify({
+        "classification": result["labels"][0],
+        "confidence": float(result["scores"][0])
+    })
 
