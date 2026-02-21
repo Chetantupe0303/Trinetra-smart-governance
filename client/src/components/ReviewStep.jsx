@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 function ReviewStep({
-  category,
   description,
   priority,
   location,
@@ -59,10 +58,10 @@ function ReviewStep({
       <div className="mb-6">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 shadow-sm">
           <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-            <span className="text-[10px] font-bold text-white">4</span>
+            <span className="text-[10px] font-bold text-white">3</span>
           </div>
           <p className="text-xs font-bold text-blue-700 tracking-wide">
-            Step 4 of 4 — Final Review
+            Step 3 of 3 — Final Review
           </p>
         </div>
       </div>
@@ -98,28 +97,7 @@ function ReviewStep({
             </h3>
           </div>
 
-          {/* Category */}
-          <div className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-gray-50/80 to-blue-50/30 border border-gray-100/80 hover:border-blue-200/60 hover:shadow-md transition-all duration-300 gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                <span className="text-lg">📂</span>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                  Category
-                </p>
-                <p className="text-sm font-bold text-gray-800 mt-0.5">
-                  Issue Type
-                </p>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 shadow-sm">
-              <span className="text-sm">🏷️</span>
-              <span className="text-sm font-bold text-blue-700">
-                {category || "Not selected"}
-              </span>
-            </span>
-          </div>
+          {/* Category removed - auto-detected by model */}
 
           {/* Priority */}
           <div className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-gray-50/80 to-blue-50/30 border border-gray-100/80 hover:border-blue-200/60 hover:shadow-md transition-all duration-300 gap-3">

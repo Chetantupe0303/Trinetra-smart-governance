@@ -16,6 +16,11 @@ const complaintSchema = new mongoose.Schema(
     imageUrl: {
       type: String
     },
+    // Store image inline in DB as a Data URL string for easy rendering.
+    image: {
+      data: { type: String }, // e.g., "data:image/jpeg;base64,..."
+      contentType: { type: String }
+    },
     category: {
       type: String,
       enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
@@ -30,9 +35,11 @@ const complaintSchema = new mongoose.Schema(
       enum: ["Pending", "In Progress", "Resolved", "Rejected"],
       default: "Pending"
     },
+    // Store location as a free-form address string provided by the client.
+    // If you later add geocoding, you can extend this to include lat/lng.
     location: {
-      lat: Number,
-      lng: Number
+      type: String,
+      trim: true
     }
   },
   { timestamps: true }

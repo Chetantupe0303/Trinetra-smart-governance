@@ -13,6 +13,8 @@ import Navbar from "./components/Navbar";
 import { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
 import { Navigate } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const { user, loading } = useContext(AuthContext);
@@ -21,6 +23,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} newestOnTop={true} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       <Navbar />
       <Routes>
         <Route

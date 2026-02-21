@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import API from "../services/apiService";
 import { AuthContext } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -16,7 +17,7 @@ function Login() {
       const res = await API.post("/auth/login", {
         email,
         password,
-      });
+      }, { withCredentials: true });
 
       const token = res.data.token;
       localStorage.setItem("token", token);
@@ -24,14 +25,17 @@ function Login() {
       const decoded = jwtDecode(token);
       setUser(decoded);
 
-      if (decoded.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      toast.success("Login successful!");
+      setTimeout(() => {
+        if (decoded.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
+      }, 2500);
 
     } catch (error) {
-      alert("Invalid credentials");
+      toast.error(error.response?.data?.message || "Invalid credentials");
     }
   };
 

@@ -2,6 +2,7 @@ import React from "react";
 import { useState } from "react";
 import API from "../services/apiService";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 function Register() {
   const [name, setName] = useState("");
@@ -17,10 +18,10 @@ function Register() {
         password,
       });
 
-      alert("Registration successful");
-      navigate("/");
+      toast.success("Registration successful!");
+      setTimeout(() => navigate("/"), 2500);
     } catch (error) {
-      alert("Registration failed");
+      toast.error(error.response?.data?.message || "Registration failed");
     }
   };
 

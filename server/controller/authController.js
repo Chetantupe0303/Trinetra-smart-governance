@@ -23,7 +23,7 @@ const registerUser = async (req, res, next) => {
     });
 
     res.status(201).json({
-      message: "User registered successfully"
+      message: "User registered successfully",
     });
   } catch (error) {
     next(error);
@@ -55,7 +55,12 @@ const loginUser = async (req, res, next) => {
       { expiresIn: "1d" }
     );
 
-    res.json({
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    res.cookie("token", token, options).json({
       token
     });
   } catch (error) {
@@ -66,5 +71,9 @@ const loginUser = async (req, res, next) => {
 
 module.exports = {
   registerUser,
-  loginUser
+  loginUser,
+  getMe: (req, res) => {
+    // Return the authenticated user's profile
+    res.json(req.user);
+  }
 };

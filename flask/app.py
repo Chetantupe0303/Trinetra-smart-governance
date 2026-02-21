@@ -1,14 +1,17 @@
 import torch
 import torch.nn as nn
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from PIL import Image
 import torchvision.transforms as transforms
 from huggingface_hub import snapshot_download
-from transformers import pipeline
+from huggingface_hub import InferenceClient
 import os
 import sys
 
 app = Flask(__name__)
+# Allow requests from the Vite dev server if needed
+CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
 
 repo_path = snapshot_download("SoloScript/SmartGovModel")
 
@@ -28,11 +31,6 @@ transform = transforms.Compose([
         [0.229, 0.224, 0.225]
     )
 ])
-
-text_classifier = pipeline(
-    "zero-shot-classification",
-    model="valhalla/distilbart-mnli-12-3"
-)
 
 classnames = ["Drainage", "Road_Damage", "Street_Light", "Trash"]
 
@@ -66,10 +64,19 @@ def classify_text():
     text = data["text"]
     candidate_labels = classnames
 
-    result = text_classifier(text, candidate_labels)
+    client = InferenceClient(token=os.getenv("HF_TOKEN"))
+
+    result = client.zero_shot_classification(
+        text,
+        candidate_labels,
+        model="valhalla/distilbart-mnli-12-3"
+        )
+
 
     return jsonify({
         "classification": result["labels"][0],
         "confidence": float(result["scores"][0])
     })
 
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -1,22 +1,27 @@
 import React from "react";
 import { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 function Navbar() {
   const { user, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/");
+    toast.success("Logged out successfully!");
+    setTimeout(() => {
+      localStorage.removeItem("token");
+      setUser(null);
+      navigate("/");
+    }, 1500);
   };
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-gray-100/80 shadow-[0_1px_20px_rgba(0,0,0,0.04)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-[4.5rem]">
 
           {/* Logo Section */}
@@ -54,15 +59,27 @@ function Navbar() {
             {user && (
               <>
                 {user.role === "admin" ? (
-                  <Link
-                    to="/admin"
-                    className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
-                      <span className="text-sm">⚙️</span>
-                    </div>
-                    Admin Panel
-                  </Link>
+                  location.pathname === "/admin" ? (
+                    <Link
+                      to="/dashboard"
+                      className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 transition-all duration-300 border border-transparent hover:border-emerald-100/80"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors duration-300">
+                        <span className="text-sm">👤</span>
+                      </div>
+                      User Panel
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/admin"
+                      className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
+                        <span className="text-sm">⚙️</span>
+                      </div>
+                      Admin Panel
+                    </Link>
+                  )
                 ) : (
                   <>
                     <Link
@@ -254,5 +271,4 @@ function Navbar() {
     </nav>
   );
 }
-
 export default Navbar;
