@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
+import UserRoute from "./components/UserRoute";
 import Navbar from "./components/Navbar";
 
 import { useContext } from "react";
@@ -36,18 +37,18 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
+            <UserRoute>
               <Dashboard />
-            </PrivateRoute>
+            </UserRoute>
           }
         />
 
         <Route
           path="/submit"
           element={
-            <PrivateRoute>
+            <UserRoute>
               <SubmitComplaint />
-            </PrivateRoute>
+            </UserRoute>
           }
         />
 

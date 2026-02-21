@@ -8,6 +8,14 @@ const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5000";
 // Create Complaint
 const createComplaint = async (req, res, next) => {
   try {
+    // Admins cannot submit complaints, only view them
+    if (req.user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admins are not allowed to submit complaints. They can only view and manage complaints."
+      });
+    }
+
     let textResult = null;
     let imageResult = null;
 
@@ -102,19 +110,17 @@ const createComplaint = async (req, res, next) => {
     }
 
     const complaint = await Complaint.create(complaintPayload);
+    
+    // Populate the user data in the response
+    const populatedComplaint = await Complaint.findById(complaint._id).populate("user", "name email");
 
-    res.status(201).json(complaint);
+    res.status(201).json(populatedComplaint);
 
   } catch (error) {
     console.error("Create complaint error:", error.message);
     next(error);
   }
 };
-
-module.exports = {
-  createComplaint
-};
-
 
 // Get All Complaints
 const getAllComplaints = async (req, res, next) => {
@@ -125,7 +131,7 @@ const getAllComplaints = async (req, res, next) => {
       console.log(`Admin ${req.user.name} & ${req.user.role} is fetching all complaints`);
       complaints = await Complaint.find().populate("user", "name email");
     } else {
-      complaints = await Complaint.find({ user: req.user._id });
+      complaints = await Complaint.find({ user: req.user._id }).populate("user", "name email");
     }
 
     res.json(complaints);
@@ -133,7 +139,6 @@ const getAllComplaints = async (req, res, next) => {
     next(error);
   }
 };
-
 
 // Update Status
 const updateComplaintStatus = async (req, res , next) => {
@@ -144,12 +149,12 @@ const updateComplaintStatus = async (req, res , next) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate("user", "name email");
 
     res.json(updatedComplaint);
   } catch (error) {
-  next(error);
-}
+    next(error);
+  }
 };
 
 module.exports = {

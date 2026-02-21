@@ -59,27 +59,15 @@ function Navbar() {
             {user && (
               <>
                 {user.role === "admin" ? (
-                  location.pathname === "/admin" ? (
-                    <Link
-                      to="/dashboard"
-                      className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50 hover:text-emerald-700 transition-all duration-300 border border-transparent hover:border-emerald-100/80"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors duration-300">
-                        <span className="text-sm">👤</span>
-                      </div>
-                      User Panel
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/admin"
-                      className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
-                        <span className="text-sm">⚙️</span>
-                      </div>
-                      Admin Panel
-                    </Link>
-                  )
+                  <Link
+                    to="/admin"
+                    className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
+                      <span className="text-sm">⚙️</span>
+                    </div>
+                    Admin Panel
+                  </Link>
                 ) : (
                   <>
                     <Link

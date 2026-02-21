@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import API from "../services/apiService";
+import { Navigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 import StepIndicator from "../components/StepIndicator";
 import DetailsStep from "../components/DetailsStep";
@@ -7,6 +9,12 @@ import LocationStep from "../components/LocationStep";
 import ReviewStep from "../components/ReviewStep";
 
 function SubmitComplaint() {
+  const { user } = useContext(AuthContext);
+
+  // Admins cannot submit complaints, only view them
+  if (user && user.role === "admin") {
+    return <Navigate to="/admin" />;
+  }
 
   const [step, setStep] = useState(1);
 

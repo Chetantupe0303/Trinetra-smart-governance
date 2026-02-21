@@ -1,10 +1,17 @@
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import API from "../services/apiService";
+import { AuthContext } from "../context/AuthContext";
 import ComplaintCard from "../components/ComplaintCard";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 function Dashboard() {
+  const { user } = useContext(AuthContext);
+
+  // Admins cannot access user dashboard
+  if (user && user.role === "admin") {
+    return <Navigate to="/admin" />;
+  }
   const [complaints, setComplaints] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [userName, setUserName] = useState("User");

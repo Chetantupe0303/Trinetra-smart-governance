@@ -13,10 +13,10 @@ const {
   updateComplaintStatus,
 } = require("../controller/complaintController");
 
-router.post("/", protect, upload.single("image"), createComplaint);
+router.post("/complaints", protect, upload.single("image"), createComplaint);
 
 router.get("/complaints", protect, getAllComplaints);
 
-router.patch("/:id/status", protect, adminOnly, updateComplaintStatus);
+router.patch("/complaints/:id/status", protect, adminOnly, updateComplaintStatus);
 
 module.exports = router;
