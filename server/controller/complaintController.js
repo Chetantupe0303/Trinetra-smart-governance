@@ -1,13 +1,21 @@
 const Complaint = require("../models/Complaint");
 const axios = require("axios");
 const FormData = require("form-data");
-const fs = require("fs");
+const cloudinary = require("../config/cloudinary");
 
-const FLASK_URL = "http://127.0.0.1:5000";
+const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5000";
 
 // Create Complaint
 const createComplaint = async (req, res, next) => {
   try {
+    // Admins cannot submit complaints, only view them
+    if (req.user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admins are not allowed to submit complaints. They can only view and manage complaints."
+      });
+    }
+
     let textResult = null;
     let imageResult = null;
 
@@ -15,29 +23,37 @@ const createComplaint = async (req, res, next) => {
     // TEXT CLASSIFICATION
     // ---------------------
     if (req.body.description) {
-      const textResponse = await axios.post(
-        `${FLASK_URL}/classify-text`,
-        { text: req.body.description }
-      );
-
-      textResult = textResponse.data; 
-      // { classification, confidence }
+      try {
+        const textResponse = await axios.post(
+          `${FLASK_URL}/classify-text`,
+          { text: req.body.description }
+        );
+        textResult = textResponse.data; // { classification, confidence }
+      } catch (e) {
+        console.error("Text classification failed:", e.response?.data || e.message);
+      }
     }
 
     // ---------------------
     // IMAGE CLASSIFICATION
     // ---------------------
-    if (req.file) {
-      const formData = new FormData();
-      formData.append("file", fs.createReadStream(req.file.path));
+    if (req.file && req.file.buffer) {
+      try {
+        const formData = new FormData();
+        formData.append("file", req.file.buffer, {
+          filename: req.file.originalname || `upload-${Date.now()}`,
+          contentType: req.file.mimetype || "image/jpeg",
+        });
 
-      const imageResponse = await axios.post(
-        `${FLASK_URL}/classify-image`,
-        formData,
-        { headers: formData.getHeaders() }
-      );
-
-      imageResult = imageResponse.data;
+        const imageResponse = await axios.post(
+          `${FLASK_URL}/classify-image`,
+          formData,
+          { headers: formData.getHeaders() }
+        );
+        imageResult = imageResponse.data;
+      } catch (e) {
+        console.error("Image classification failed:", e.response?.data || e.message);
+      }
     }
 
     // ---------------------
@@ -65,25 +81,46 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // SAVE TO DATABASE
     // ---------------------
-    const complaint = await Complaint.create({
+    const complaintPayload = {
       description: req.body.description,
       user: req.user._id,
       category: finalCategory,
       priority: req.body.priority,
-      location: req.body.location
-    });
+      location: req.body.location,
+    };
 
-    res.status(201).json(complaint);
+    if (req.file && req.file.buffer) {
+      // Persist image in DB as a Data URL and upload to Cloudinary
+      const mime = req.file.mimetype || "image/jpeg";
+      const base64 = req.file.buffer.toString("base64");
+      const dataUri = `data:${mime};base64,${base64}`;
+      complaintPayload.image = {
+        data: dataUri,
+        contentType: mime,
+      };
+      try {
+        const uploadRes = await cloudinary.uploader.upload(dataUri, {
+          folder: "complaints",
+          resource_type: "image",
+        });
+        complaintPayload.imageUrl = uploadRes.secure_url;
+      } catch (e) {
+        console.error("Cloudinary upload failed:", e.response?.data || e.message);
+      }
+    }
+
+    const complaint = await Complaint.create(complaintPayload);
+    
+    // Populate the user data in the response
+    const populatedComplaint = await Complaint.findById(complaint._id).populate("user", "name email");
+
+    res.status(201).json(populatedComplaint);
 
   } catch (error) {
+    console.error("Create complaint error:", error.message);
     next(error);
   }
 };
-
-module.exports = {
-  createComplaint
-};
-
 
 // Get All Complaints
 const getAllComplaints = async (req, res, next) => {
@@ -91,9 +128,10 @@ const getAllComplaints = async (req, res, next) => {
     let complaints;
 
     if (req.user.role === "admin") {
+      console.log(`Admin ${req.user.name} & ${req.user.role} is fetching all complaints`);
       complaints = await Complaint.find().populate("user", "name email");
     } else {
-      complaints = await Complaint.find({ user: req.user._id });
+      complaints = await Complaint.find({ user: req.user._id }).populate("user", "name email");
     }
 
     res.json(complaints);
@@ -101,7 +139,6 @@ const getAllComplaints = async (req, res, next) => {
     next(error);
   }
 };
-
 
 // Update Status
 const updateComplaintStatus = async (req, res , next) => {
@@ -112,12 +149,12 @@ const updateComplaintStatus = async (req, res , next) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).populate("user", "name email");
 
     res.json(updatedComplaint);
   } catch (error) {
-  next(error);
-}
+    next(error);
+  }
 };
 
 module.exports = {

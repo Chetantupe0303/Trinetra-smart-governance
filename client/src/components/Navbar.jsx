@@ -1,22 +1,27 @@
 import React from "react";
 import { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 function Navbar() {
   const { user, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/");
+    toast.success("Logged out successfully!");
+    setTimeout(() => {
+      localStorage.removeItem("token");
+      setUser(null);
+      navigate("/");
+    }, 1500);
   };
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-2xl border-b border-gray-100/80 shadow-[0_1px_20px_rgba(0,0,0,0.04)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-[4.5rem]">
 
           {/* Logo Section */}
@@ -254,5 +259,4 @@ function Navbar() {
     </nav>
   );
 }
-
 export default Navbar;

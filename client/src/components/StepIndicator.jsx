@@ -1,10 +1,10 @@
 import React from "react";
 
 function StepIndicator({ step }) {
-  const steps = ["Category", "Details", "Location", "Review"];
+  const steps = ["Details", "Location", "Review"];
   const progressWidth = ((step - 1) / (steps.length - 1)) * 100;
 
-  const stepIcons = ["📂", "✏️", "📍", "✅"];
+  const stepIcons = ["✏️", "📍", "✅"];
 
   return (
     <div className="relative mb-16 px-2 sm:px-4">
@@ -47,7 +47,7 @@ function StepIndicator({ step }) {
               const isCompleted = step > index + 1;
 
               return (
-                <div key={index} className="flex flex-col items-center group" style={{ width: "25%" }}>
+                <div key={index} className="flex flex-col items-center group" style={{ width: `${100 / steps.length}%` }}>
 
                   {/* Circle Container */}
                   <div className="relative">

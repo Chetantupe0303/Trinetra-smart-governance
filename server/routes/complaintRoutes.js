@@ -3,18 +3,20 @@ const router = express.Router();
 const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 const multer = require("multer");
+// Use in-memory storage; we'll upload to Cloudinary and avoid writing to disk
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 const {
   createComplaint,
   getAllComplaints,
   updateComplaintStatus,
 } = require("../controller/complaintController");
 
-const upload = multer({ dest: "uploads/" });
+router.post("/complaints", protect, upload.single("image"), createComplaint);
 
-router.post("/", protect, upload.single("image"), createComplaint);
+router.get("/complaints", protect, getAllComplaints);
 
-router.get("/", protect, getAllComplaints);
-
-router.patch("/:id/status", protect, adminOnly, updateComplaintStatus);
+router.patch("/complaints/:id/status", protect, adminOnly, updateComplaintStatus);
 
 module.exports = router;
