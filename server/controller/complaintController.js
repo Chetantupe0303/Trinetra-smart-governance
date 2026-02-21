@@ -3,7 +3,7 @@ const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
 
-const FLASK_URL = process.env.FLASK_URL || "http://localhost:5000";
+const FLASK_URL = "http://127.0.0.1:5000";
 
 // Create Complaint
 const createComplaint = async (req, res, next) => {

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from PIL import Image
 import torchvision.transforms as transforms
 from huggingface_hub import snapshot_download
@@ -9,6 +10,7 @@ import os
 import sys
 
 app = Flask(__name__)
+CORS(app)
 
 repo_path = snapshot_download("SoloScript/SmartGovModel")
 
@@ -73,3 +75,5 @@ def classify_text():
         "confidence": float(result["scores"][0])
     })
 
+if __name__ == "__main__":
+    app.run(debug=True)
