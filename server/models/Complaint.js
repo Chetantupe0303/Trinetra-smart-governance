@@ -2,45 +2,84 @@ const mongoose = require("mongoose");
 
 const complaintSchema = new mongoose.Schema(
   {
-
-      user: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
+
     description: {
       type: String,
       required: true,
-       trim: true
+      trim: true,
     },
+
     imageUrl: {
-      type: String
+      type: String,
     },
-    // Store image inline in DB as a Data URL string for easy rendering.
-    image: {
-      data: { type: String }, // e.g., "data:image/jpeg;base64,..."
-      contentType: { type: String }
-    },
+
     category: {
       type: String,
       enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
     },
+
     priority: {
       type: String,
       enum: ["Low", "Medium", "High"],
-      default: "Medium"
+      default: "Medium",
     },
+
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Resolved", "Rejected"],
-      default: "Pending"
+      enum: [
+        "Submitted",
+        "Assigned",
+        "In Progress",
+        "Completed",
+        "Approved",
+        "Rejected",
+      ],
+      default: "Submitted",
     },
-    // Store location as a free-form address string provided by the client.
-    // If you later add geocoding, you can extend this to include lat/lng.
-    location: {
+
+    // ✅ Only this worker field is needed
+    assignedWorker: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    proofImageUrl: {
       type: String,
-      trim: true
-    }
+    },
+
+    completionImage: {
+      type: String,
+    },
+
+    completedAt: {
+      type: Date,
+    },
+
+    location: {
+      address: String,
+      lat: Number,
+      lng: Number,
+    },
+
+    timeline: [
+      {
+        status: String,
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        note: String,
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

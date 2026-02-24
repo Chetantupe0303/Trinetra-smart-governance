@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 import API from "../services/apiService";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,7 +9,16 @@ function Register() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleRegister = async () => {
+  const handleRegister = async (e) => {
+    e.preventDefault(); // 🚨 Prevent page refresh
+
+    console.log("Sending:", { name, email, password });
+
+    if (!name || !email || !password) {
+      toast.error("All fields are required");
+      return;
+    }
+
     try {
       await API.post("/auth/register", {
         name,
@@ -19,9 +27,15 @@ function Register() {
       });
 
       toast.success("Registration successful!");
-      setTimeout(() => navigate("/"), 2500);
+      setName("");
+      setEmail("");
+      setPassword("");
+
+      setTimeout(() => navigate("/"), 2000);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Registration failed");
+      toast.error(
+        error.response?.data?.message || "Registration failed"
+      );
     }
   };
 
@@ -48,14 +62,17 @@ function Register() {
         </div>
 
         {/* Form */}
-        <div className="space-y-6">
+        <form onSubmit={handleRegister} className="space-y-6">
 
+          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">
               Name
             </label>
             <input
+              type="text"
               placeholder="Enter your name"
+              value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-300 
                          bg-gray-50 text-gray-800
@@ -64,6 +81,7 @@ function Register() {
             />
           </div>
 
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">
               Email
@@ -71,6 +89,7 @@ function Register() {
             <input
               type="email"
               placeholder="Enter your email"
+              value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-300 
                          bg-gray-50 text-gray-800
@@ -79,6 +98,7 @@ function Register() {
             />
           </div>
 
+          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">
               Password
@@ -86,6 +106,7 @@ function Register() {
             <input
               type="password"
               placeholder="Enter your password"
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-gray-300 
                          bg-gray-50 text-gray-800
@@ -94,8 +115,9 @@ function Register() {
             />
           </div>
 
+          {/* Button */}
           <button
-            onClick={handleRegister}
+            type="submit"
             className="w-full bg-emerald-600 hover:bg-emerald-700 
                        text-white py-3 rounded-xl font-medium 
                        shadow-sm transition duration-300"
@@ -103,7 +125,7 @@ function Register() {
             Register
           </button>
 
-        </div>
+        </form>
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 mt-8">

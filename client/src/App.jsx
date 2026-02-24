@@ -5,10 +5,12 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import SubmitComplaint from "./pages/SubmitComplaint";
 import AdminDashboard from "./pages/AdminDashboard";
+import WorkerDashboard from "./pages/WorkerDashboard";
 
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import UserRoute from "./components/UserRoute";
+import WorkerRoute from "./components/WorkerRoute";
 import Navbar from "./components/Navbar";
 
 import { useContext } from "react";
@@ -60,6 +62,18 @@ function App() {
             </AdminRoute>
           }
         />
+
+          <Route
+  path="/worker"
+  element={
+    <WorkerRoute>
+      <WorkerDashboard />
+    </WorkerRoute>
+  }
+/>
+
+
+
       </Routes>
     </BrowserRouter>
   );

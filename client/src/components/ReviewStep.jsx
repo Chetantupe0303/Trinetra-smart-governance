@@ -7,6 +7,7 @@ function ReviewStep({
   location,
   prevStep,
   handleSubmit,
+  loading ,
 }) {
   const getPriorityStyle = (p) => {
     switch (p?.toLowerCase()) {

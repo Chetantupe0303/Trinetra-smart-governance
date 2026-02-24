@@ -3,11 +3,12 @@ const express = require("express");
 const path = require("path");
 const connectDB = require("./config/db");
 const complaintRoutes = require("./routes/complaintRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const cors = require("cors");
 const errorHandler = require("./middleware/errorMiddleware");
 const cookieParser = require("cookie-parser");
-
-
+const uploadRoutes = require("./routes/uploadRoutes");
+const workerRoutes = require("./routes/workerRoutes");
 
 
 connectDB();
@@ -21,18 +22,21 @@ const app = express();
 
 
 app.use(express.json());
-app.use(cors(
-  {
-    origin: process.env.CORS,
-    credentials: true,
-  }
-));
+const corsOptions = {
+  origin: process.env.CORS || "http://localhost:5173",
+  credentials: true,
+};
+console.log("CORS origin:", corsOptions.origin);
+app.use(cors(corsOptions));
 app.use(cookieParser());
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api", complaintRoutes);
 app.use("/api/auth", require("./routes/authRoutes"));
-
+app.use("/api/admin", adminRoutes);
+app.use("/api/worker", workerRoutes);
+app.use("/upload", uploadRoutes);
+app.use("/api/upload", uploadRoutes);
 
 
 

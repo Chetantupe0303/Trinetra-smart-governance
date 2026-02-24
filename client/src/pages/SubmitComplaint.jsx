@@ -11,42 +11,45 @@ import ReviewStep from "../components/ReviewStep";
 function SubmitComplaint() {
   const { user } = useContext(AuthContext);
 
-  // Admins cannot submit complaints, only view them
   if (user && user.role === "admin") {
     return <Navigate to="/admin" />;
   }
 
   const [step, setStep] = useState(1);
-
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [image, setImage] = useState(null);
   const [location, setLocation] = useState("");
+  const [loading, setLoading] = useState(false); // ✅ added
 
-  const nextStep = () => setStep(prev => prev + 1);
-  const prevStep = () => setStep(prev => prev - 1);
+  const nextStep = () => setStep((prev) => prev + 1);
+  const prevStep = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
-    try {
-      const formData = new FormData();
-      if (description) formData.append("description", description);
-      if (priority) formData.append("priority", priority);
-      if (location) formData.append("location", location);
-      if (image) formData.append("image", image);
+  if (loading) return false;
+  try {
+    setLoading(true);
 
-      await API.post("/complaints", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    const formData = new FormData();
+    formData.append("description", description);
+    formData.append("priority", priority);
+    formData.append("location", location);
+    
+    if (image) formData.append("image", image);
+    await API.post("/complaints", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return true; // ✅ important
 
-      alert("Complaint submitted");
-    } catch (error) {
-      alert("Error submitting complaint");
-    }
-  };
+  } catch (error) {
+    return false;
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
 
         <StepIndicator step={step} />
@@ -80,6 +83,7 @@ function SubmitComplaint() {
             location={location}
             prevStep={prevStep}
             handleSubmit={handleSubmit}
+            loading={loading}   // ✅ pass loading
           />
         )}
 

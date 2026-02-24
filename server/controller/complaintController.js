@@ -1,4 +1,5 @@
 const Complaint = require("../models/Complaint");
+const User = require("../models/users");
 const axios = require("axios");
 const FormData = require("form-data");
 const cloudinary = require("../config/cloudinary");
@@ -16,17 +17,29 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
+    const description =
+      typeof req.body.description === "string"
+        ? req.body.description.trim()
+        : "";
+
+    if (!description) {
+      return res.status(400).json({
+        success: false,
+        message: "Description is required.",
+      });
+    }
+
     let textResult = null;
     let imageResult = null;
 
     // ---------------------
     // TEXT CLASSIFICATION
     // ---------------------
-    if (req.body.description) {
+    if (description) {
       try {
         const textResponse = await axios.post(
           `${FLASK_URL}/classify-text`,
-          { text: req.body.description }
+          { text: description }
         );
         textResult = textResponse.data; // { classification, confidence }
       } catch (e) {
@@ -82,7 +95,7 @@ const createComplaint = async (req, res, next) => {
     // SAVE TO DATABASE
     // ---------------------
     const complaintPayload = {
-      description: req.body.description,
+      description,
       user: req.user._id,
       category: finalCategory,
       priority: req.body.priority,
@@ -129,9 +142,13 @@ const getAllComplaints = async (req, res, next) => {
 
     if (req.user.role === "admin") {
       console.log(`Admin ${req.user.name} & ${req.user.role} is fetching all complaints`);
-      complaints = await Complaint.find().populate("user", "name email");
+      complaints = await Complaint.find()
+        .populate("user", "name email")
+        .populate("assignedWorker", "name email");
     } else {
-      complaints = await Complaint.find({ user: req.user._id }).populate("user", "name email");
+      complaints = await Complaint.find({ user: req.user._id })
+        .populate("user", "name email")
+        .populate("assignedWorker", "name email");
     }
 
     res.json(complaints);
@@ -143,13 +160,46 @@ const getAllComplaints = async (req, res, next) => {
 // Update Status
 const updateComplaintStatus = async (req, res , next) => {
   try {
-    const { status } = req.body;
+    const { status, workerId } = req.body;
 
-    const updatedComplaint = await Complaint.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    ).populate("user", "name email");
+    if (status === "Assigned") {
+      if (!workerId) {
+        return res.status(400).json({
+          success: false,
+          message: "workerId is required when status is Assigned.",
+        });
+      }
+
+      const worker = await User.findById(workerId);
+      if (!worker || worker.role !== "worker") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid workerId.",
+        });
+      }
+    }
+
+    const update = { status };
+    if (status === "Assigned") {
+      update.assignedWorker = workerId;
+      update.$push = {
+        timeline: {
+          status: "Assigned",
+          updatedBy: req.user._id,
+          note: "Complaint assigned to worker",
+        },
+      };
+    }
+
+    const updatedComplaint = await Complaint.findByIdAndUpdate(req.params.id, update, {
+      returnDocument: "after",
+    })
+      .populate("user", "name email")
+      .populate("assignedWorker", "name email");
+
+    if (!updatedComplaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
 
     res.json(updatedComplaint);
   } catch (error) {

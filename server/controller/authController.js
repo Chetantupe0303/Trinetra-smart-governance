@@ -28,6 +28,9 @@ const registerUser = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+
+
+  console.log("Register hit", req.body);
 };
 
 // Login
@@ -37,14 +40,14 @@ const loginUser = async (req, res, next) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      const error = new Error("Invalid credentials");
+      const error = new Error("Invalid credentials with no user ");
       error.statusCode = 400;
       return next(error);
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      const error = new Error("Invalid credentials");
+      const error = new Error("Invalid credentials not match the user ");
       error.statusCode = 400;
       return next(error);
     }

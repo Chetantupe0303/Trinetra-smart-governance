@@ -5,13 +5,16 @@ from flask_cors import CORS
 from PIL import Image
 import torchvision.transforms as transforms
 from huggingface_hub import snapshot_download
-from huggingface_hub import InferenceClient
 import os
 import sys
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 # Allow requests from the Vite dev server if needed
-CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
+CORS(app, supports_credentials=True , resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
 
 repo_path = snapshot_download("SoloScript/SmartGovModel")
 
@@ -63,19 +66,55 @@ def classify_text():
 
     text = data["text"]
     candidate_labels = classnames
+    token = os.getenv("HF_TOKEN")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
-    client = InferenceClient(token=os.getenv("HF_TOKEN"))
+    payload = {
+        "inputs": text,
+        "parameters": {
+            "candidate_labels": candidate_labels,
+            "multi_label": False
+        }
+    }
 
-    result = client.zero_shot_classification(
-        text,
-        candidate_labels,
-        model="valhalla/distilbart-mnli-12-3"
+    try:
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/facebook/bart-large-mnli",
+            headers=headers,
+            json=payload,
+            timeout=30,
         )
+        response.raise_for_status()
+        result = response.json()
+    except Exception as e:
+        return jsonify({"error": f"Text classification failed: {str(e)}"}), 502
 
+    label = None
+    score = None
+
+    # HF can return either {"labels": [...], "scores": [...]} or [{"label": "...", "score": ...}, ...]
+    if isinstance(result, dict):
+        labels = result.get("labels", [])
+        scores = result.get("scores", [])
+        if labels and scores:
+            label = labels[0]
+            score = scores[0]
+        elif "label" in result and "score" in result:
+            label = result["label"]
+            score = result["score"]
+    elif isinstance(result, list) and result and isinstance(result[0], dict):
+        ranked = sorted(result, key=lambda x: float(x.get("score", 0)), reverse=True)
+        label = ranked[0].get("label")
+        score = ranked[0].get("score")
+
+    if label is None or score is None:
+        return jsonify({"error": "Unexpected response format from text classifier"}), 502
 
     return jsonify({
-        "classification": result["labels"][0],
-        "confidence": float(result["scores"][0])
+        "classification": label,
+        "confidence": float(score)
     })
 
 if __name__ == "__main__":

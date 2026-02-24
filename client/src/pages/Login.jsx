@@ -29,6 +29,8 @@ function Login() {
       setTimeout(() => {
         if (decoded.role === "admin") {
           navigate("/admin");
+        } else if (decoded.role === "worker") {
+          navigate("/worker");
         } else {
           navigate("/dashboard");
         }
