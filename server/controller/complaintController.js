@@ -32,20 +32,20 @@ const createComplaint = async (req, res, next) => {
     let textResult = null;
     let imageResult = null;
 
-    // ---------------------
-    // TEXT CLASSIFICATION
-    // ---------------------
-    if (description) {
-      try {
-        const textResponse = await axios.post(
-          `${FLASK_URL}/classify-text`,
-          { text: description }
-        );
-        textResult = textResponse.data; // { classification, confidence }
-      } catch (e) {
-        console.error("Text classification failed:", e.response?.data || e.message);
-      }
-    }
+    // // ---------------------
+    // // TEXT CLASSIFICATION
+    // // ---------------------
+    // //if (description) {
+    // //  try {
+    // //    const textResponse = await axios.post(
+    // //      `${FLASK_URL}/classify-text`,
+    // //      { text: description }
+    // //    );
+    //     textResult = textResponse.data; // { classification, confidence }
+    //   } catch (e) {
+    //     console.error("Text classification failed:", e.response?.data || e.message);
+    //   }
+    // }
 
     // ---------------------
     // IMAGE CLASSIFICATION
@@ -74,22 +74,24 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     let finalCategory = null;
 
-    if (textResult && imageResult) {
-      if (textResult.classification === imageResult.classification) {
-        finalCategory = textResult.classification;
-      } else {
-        finalCategory =
-          textResult.confidence > imageResult.confidence
-            ? textResult.classification
-            : imageResult.classification;
-      }
-    } 
-    else if (textResult) {
-      finalCategory = textResult.classification;
-    } 
-    else if (imageResult) {
-      finalCategory = imageResult.classification;
-    }
+    //if (textResult && imageResult) {
+    //  if (textResult.classification === imageResult.classification) {
+    //    finalCategory = textResult.classification;
+    //  } else {
+    //    finalCategory =
+    //      textResult.confidence > imageResult.confidence
+    //       ? textResult.classification
+    //        : imageResult.classification;
+    //  }
+    //} 
+    //else if (textResult) {
+    //  finalCategory = textResult.classification;
+    //} 
+    //else if (imageResult) {
+    finalCategory = imageResult.classification;
+    //}
+
+    // REMINDER TO CHECK
 
     // ---------------------
     // SAVE TO DATABASE

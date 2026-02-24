@@ -81,7 +81,7 @@ def classify_text():
 
     try:
         response = requests.post(
-            "https://api-inference.huggingface.co/models/facebook/bart-large-mnli",
+            "https://api-inference.huggingface.co/models/valhalla/distilbart-mnli-12-3",
             headers=headers,
             json=payload,
             timeout=30,
