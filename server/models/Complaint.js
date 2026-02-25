@@ -2,39 +2,84 @@ const mongoose = require("mongoose");
 
 const complaintSchema = new mongoose.Schema(
   {
-
-      user: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
+
     description: {
       type: String,
       required: true,
-       trim: true
+      trim: true,
     },
+
     imageUrl: {
-      type: String
+      type: String,
     },
+
     category: {
       type: String,
-      enum: ["Water", "Electricity", "Road", "Sanitation", "Other"],
-      required: true
+      enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
     },
+
     priority: {
       type: String,
       enum: ["Low", "Medium", "High"],
-      default: "Medium"
+      default: "Medium",
     },
+
     status: {
       type: String,
-      enum: ["Pending", "In Progress", "Resolved", "Rejected"],
-      default: "Pending"
+      enum: [
+        "Submitted",
+        "Assigned",
+        "In Progress",
+        "Completed",
+        "Approved",
+        "Rejected",
+      ],
+      default: "Submitted",
     },
+
+    // ✅ Only this worker field is needed
+    assignedWorker: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    proofImageUrl: {
+      type: String,
+    },
+
+    completionImage: {
+      type: String,
+    },
+
+    completedAt: {
+      type: Date,
+    },
+
     location: {
+      address: String,
       lat: Number,
-      lng: Number
-    }
+      lng: Number,
+    },
+
+    timeline: [
+      {
+        status: String,
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        note: String,
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -1,56 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import API from "../services/apiService";
+import { Navigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 import StepIndicator from "../components/StepIndicator";
-import CategoryStep from "../components/CategoryStep";
 import DetailsStep from "../components/DetailsStep";
 import LocationStep from "../components/LocationStep";
 import ReviewStep from "../components/ReviewStep";
 
 function SubmitComplaint() {
+  const { user } = useContext(AuthContext);
+
+  if (user && user.role === "admin") {
+    return <Navigate to="/admin" />;
+  }
 
   const [step, setStep] = useState(1);
-
-  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [image, setImage] = useState(null);
   const [location, setLocation] = useState("");
+  const [loading, setLoading] = useState(false); // ✅ added
 
-  const nextStep = () => setStep(prev => prev + 1);
-  const prevStep = () => setStep(prev => prev - 1);
+  const nextStep = () => setStep((prev) => prev + 1);
+  const prevStep = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
-    try {
-      await API.post("/complaints", {
-        category,
-        description,
-        priority,
-        location
-      });
+  if (loading) return false;
+  try {
+    setLoading(true);
 
-      alert("Complaint submitted");
-    } catch (error) {
-      alert("Error submitting complaint");
-    }
-  };
+    const formData = new FormData();
+    formData.append("description", description);
+    formData.append("priority", priority);
+    formData.append("location", location);
+    
+    if (image) formData.append("image", image);
+    await API.post("/complaints", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return true; // ✅ important
+
+  } catch (error) {
+    return false;
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
 
         <StepIndicator step={step} />
 
         {step === 1 && (
-          <CategoryStep
-            category={category}
-            setCategory={setCategory}
-            nextStep={nextStep}
-          />
-        )}
-
-        {step === 2 && (
           <DetailsStep
             description={description}
             setDescription={setDescription}
@@ -63,7 +67,7 @@ function SubmitComplaint() {
           />
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <LocationStep
             location={location}
             setLocation={setLocation}
@@ -72,14 +76,14 @@ function SubmitComplaint() {
           />
         )}
 
-        {step === 4 && (
+        {step === 3 && (
           <ReviewStep
-            category={category}
             description={description}
             priority={priority}
             location={location}
             prevStep={prevStep}
             handleSubmit={handleSubmit}
+            loading={loading}   // ✅ pass loading
           />
         )}
 

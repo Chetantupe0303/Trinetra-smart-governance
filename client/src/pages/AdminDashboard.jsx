@@ -1,171 +1,343 @@
-import React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import API from "../services/apiService";
 
-// 👇 Styles outside component
-const cardStyle = {
-  padding: "15px",
-  border: "1px solid #ccc",
-  borderRadius: "8px",
-  minWidth: "120px",
-  textAlign: "center",
-  fontWeight: "bold",
-  backgroundColor: "#f5f5f5"
-};
+const STATUS_OPTIONS = ["Submitted", "In Progress", "Completed", "Approved", "Rejected"];
 
 function AdminDashboard() {
   const [complaints, setComplaints] = useState([]);
+  const [workers, setWorkers] = useState([]);
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedComplaints, setSelectedComplaints] = useState({});
+  const [bulkWorkerId, setBulkWorkerId] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const previousStatusRef = useRef({});
 
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
-
-  const fetchComplaints = async () => {
+  async function fetchComplaints() {
     try {
-      const res = await API.get("/complaints");
-      setComplaints(res.data);
+      const res = await API.get("/complaints", { withCredentials: true });
+      const nextComplaints = res.data;
+      const movedToInProgress = [];
+      const nextStatusMap = {};
+
+      nextComplaints.forEach((complaint) => {
+        const previousStatus = previousStatusRef.current[complaint._id];
+        if (
+          previousStatus &&
+          previousStatus !== "In Progress" &&
+          complaint.status === "In Progress"
+        ) {
+          movedToInProgress.push(complaint);
+        }
+
+        nextStatusMap[complaint._id] = complaint.status;
+      });
+
+      previousStatusRef.current = nextStatusMap;
+
+      if (movedToInProgress.length === 1) {
+        const complaint = movedToInProgress[0];
+        const workerName = complaint.assignedWorker?.name || "Worker";
+        setStatusMessage(
+          `${workerName} started work. Status updated to In Progress.`
+        );
+      } else if (movedToInProgress.length > 1) {
+        setStatusMessage(
+          `${movedToInProgress.length} complaints were updated to In Progress.`
+        );
+      }
+
+      const existingIds = new Set(nextComplaints.map((c) => c._id));
+      setSelectedComplaints((prev) => {
+        const next = {};
+        Object.entries(prev).forEach(([id, isSelected]) => {
+          if (isSelected && existingIds.has(id)) {
+            next[id] = true;
+          }
+        });
+        return next;
+      });
+
+      setComplaints(nextComplaints);
     } catch (error) {
       console.error("Error fetching complaints", error);
     }
-  };
+  }
+
+  async function fetchWorkers() {
+    try {
+      const res = await API.get("/admin/workers", { withCredentials: true });
+      setWorkers(res.data);
+    } catch (error) {
+      console.error("Error fetching workers", error);
+    }
+  }
+
+  useEffect(() => {
+    fetchComplaints();
+    fetchWorkers();
+
+    const intervalId = setInterval(() => {
+      fetchComplaints();
+    }, 8000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const updateStatus = async (id, newStatus) => {
     try {
-      await API.patch(`/complaints/${id}/status`, {
-        status: newStatus,
-      });
+      const body = { status: newStatus };
 
-      fetchComplaints(); // refresh list
+      await API.patch(`/complaints/${id}/status`, body, { withCredentials: true });
+      fetchComplaints();
     } catch (error) {
       console.error("Error updating status", error);
     }
   };
 
-  // 👇 Analytics calculations
+  const filteredComplaints =
+    filterStatus === "All"
+      ? complaints
+      : complaints.filter((c) => c.status === filterStatus);
+
+  const selectedComplaintIds = Object.entries(selectedComplaints)
+    .filter(([, isSelected]) => isSelected)
+    .map(([id]) => id);
+
+  const allFilteredSelected =
+    filteredComplaints.length > 0 &&
+    filteredComplaints.every((complaint) => selectedComplaints[complaint._id]);
+
+  const toggleComplaintSelection = (complaintId) => {
+    setSelectedComplaints((prev) => ({
+      ...prev,
+      [complaintId]: !prev[complaintId],
+    }));
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedComplaints((prev) => {
+      const next = { ...prev };
+      filteredComplaints.forEach((complaint) => {
+        next[complaint._id] = !allFilteredSelected;
+      });
+      return next;
+    });
+  };
+
+  const assignBulkTasks = async () => {
+    try {
+      if (!bulkWorkerId) {
+        alert("Please select a worker for bulk assignment.");
+        return;
+      }
+
+      if (selectedComplaintIds.length === 0) {
+        alert("Please select at least one complaint.");
+        return;
+      }
+
+      const res = await API.post(
+        "/admin/assign",
+        {
+          workerId: bulkWorkerId,
+          complaintIds: selectedComplaintIds,
+        },
+        { withCredentials: true }
+      );
+
+      setStatusMessage(
+        res.data?.message || `Assigned ${selectedComplaintIds.length} tasks successfully.`
+      );
+      setSelectedComplaints({});
+      fetchComplaints();
+    } catch (error) {
+      console.error("Error assigning tasks in bulk", error);
+      setStatusMessage("Bulk assignment failed. Please try again.");
+    }
+  };
+
   const total = complaints.length;
-  const pending = complaints.filter(c => c.status === "Pending").length;
-  const inProgress = complaints.filter(c => c.status === "In Progress").length;
-  const resolved = complaints.filter(c => c.status === "Resolved").length;
-  const highPriority = complaints.filter(c => c.priority === "High").length;
+  const submitted = complaints.filter((c) => c.status === "Submitted").length;
+  const assigned = complaints.filter((c) => c.status === "Assigned").length;
+  const inProgress = complaints.filter((c) => c.status === "In Progress").length;
+  const completed = complaints.filter((c) => c.status === "Completed").length;
+  const approved = complaints.filter((c) => c.status === "Approved").length;
+  const rejected = complaints.filter((c) => c.status === "Rejected").length;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Submitted":
+        return "bg-amber-50 text-amber-700";
+      case "Assigned":
+        return "bg-indigo-50 text-indigo-700";
+      case "In Progress":
+        return "bg-blue-50 text-blue-700";
+      case "Completed":
+        return "bg-green-50 text-green-700";
+      case "Approved":
+        return "bg-emerald-50 text-emerald-700";
+      case "Rejected":
+        return "bg-red-50 text-red-700";
+      default:
+        return "bg-slate-100 text-slate-700";
+    }
+  };
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12">
-    <div className="max-w-7xl mx-auto px-6">
-
-      {/* Header */}
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold text-slate-800 tracking-tight">
-          Admin Dashboard
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">
+          Admin Complaint Management
         </h1>
-        <p className="text-slate-500 mt-2">
-          Monitor and manage all user complaints
-        </p>
-      </div>
 
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-14">
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-100 hover:shadow-xl transition">
-          <p className="text-sm text-slate-500 mb-2">Total</p>
-          <p className="text-3xl font-bold text-indigo-600">{total}</p>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-100 hover:shadow-xl transition">
-          <p className="text-sm text-slate-500 mb-2">Pending</p>
-          <p className="text-3xl font-bold text-amber-500">{pending}</p>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-100 hover:shadow-xl transition">
-          <p className="text-sm text-slate-500 mb-2">In Progress</p>
-          <p className="text-3xl font-bold text-blue-500">{inProgress}</p>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-100 hover:shadow-xl transition">
-          <p className="text-sm text-slate-500 mb-2">Resolved</p>
-          <p className="text-3xl font-bold text-green-600">{resolved}</p>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-100 hover:shadow-xl transition">
-          <p className="text-sm text-slate-500 mb-2">High Priority</p>
-          <p className="text-3xl font-bold text-red-600">{highPriority}</p>
-        </div>
-
-      </div>
-
-      {/* Complaint List */}
-      <div className="space-y-8">
-        {complaints.map((c) => (
-          <div
-            key={c._id}
-            className="bg-white rounded-3xl p-8 shadow-md border border-slate-100 hover:shadow-xl transition"
-          >
-
-            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6">
-
-              <div className="space-y-2">
-                <p className="text-slate-600">
-                  <span className="font-semibold text-slate-800">User:</span>{" "}
-                  {c.user?.name}
-                </p>
-
-                <p className="text-slate-600">
-                  <span className="font-semibold text-slate-800">Description:</span>{" "}
-                  {c.description}
-                </p>
-
-                <p className="text-slate-600">
-                  <span className="font-semibold text-slate-800">Category:</span>{" "}
-                  {c.category}
-                </p>
-
-                <div className="flex items-center gap-4 mt-2">
-
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold
-                    ${c.priority === "High"
-                      ? "bg-red-100 text-red-600"
-                      : c.priority === "Medium"
-                      ? "bg-yellow-100 text-yellow-600"
-                      : "bg-green-100 text-green-600"
-                    }`}>
-                    {c.priority}
-                  </span>
-
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold
-                    ${c.status === "Resolved"
-                      ? "bg-green-100 text-green-600"
-                      : c.status === "In Progress"
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-amber-100 text-amber-600"
-                    }`}>
-                    {c.status}
-                  </span>
-
-                </div>
-              </div>
-
-              {/* Status Update Dropdown */}
-              <div>
-                <select
-                  value={c.status}
-                  onChange={(e) => updateStatus(c._id, e.target.value)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Resolved">Resolved</option>
-                </select>
-              </div>
-
-            </div>
-
+        {statusMessage && (
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            {statusMessage}
           </div>
-        ))}
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+          {[
+            { label: "Total", value: total },
+            { label: "Submitted", value: submitted },
+            { label: "Assigned", value: assigned },
+            { label: "In Progress", value: inProgress },
+            { label: "Completed", value: completed },
+            { label: "Approved", value: approved },
+            { label: "Rejected", value: rejected },
+          ].map((item, i) => (
+            <div key={i} className="bg-white p-4 rounded-lg border shadow-sm">
+              <p className="text-xs text-slate-500">{item.label}</p>
+              <p className="text-xl font-bold text-slate-900">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          {["All", ...STATUS_OPTIONS].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                filterStatus === status
+                  ? "bg-slate-900 text-white"
+                  : "bg-white border text-slate-600"
+              }`}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-6 rounded-lg border bg-white p-4">
+          <p className="text-sm font-semibold text-slate-800 mb-3">
+            Bulk Assign Tasks ({selectedComplaintIds.length} selected)
+          </p>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <select
+              value={bulkWorkerId}
+              onChange={(e) => setBulkWorkerId(e.target.value)}
+              className="border px-3 py-2 rounded-lg text-sm"
+            >
+              <option value="">Select worker for selected complaints</option>
+              {workers.map((w) => (
+                <option key={w._id} value={w._id}>
+                  {w.name} ({w.email})
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={assignBulkTasks}
+              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm"
+            >
+              Assign Selected
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-100 text-slate-600">
+              <tr>
+                <th className="p-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                  />
+                </th>
+                <th className="p-3 text-left">Citizen</th>
+                <th className="p-3 text-left">Description</th>
+                <th className="p-3 text-left">Status</th>
+                <th className="p-3 text-left">Completed Photo</th>
+                <th className="p-3 text-left">Update</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredComplaints.map((c) => (
+                <tr key={c._id} className="border-t">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedComplaints[c._id])}
+                      onChange={() => toggleComplaintSelection(c._id)}
+                    />
+                  </td>
+                  <td className="p-3">{c.user?.name || "Unknown"}</td>
+                  <td className="p-3">{c.description}</td>
+                  <td className="p-3">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                        c.status
+                      )}`}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    {c.proofImageUrl || c.completionImage ? (
+                      <a
+                        href={c.proofImageUrl || c.completionImage}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 underline text-xs"
+                      >
+                        View Photo
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">Not uploaded</span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <select
+                      value={c.status}
+                      onChange={(e) => updateStatus(c._id, e.target.value)}
+                      className="border px-3 py-1 rounded-lg text-sm"
+                    >
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+
+              {filteredComplaints.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="text-center p-6 text-slate-400">
+                    No complaints found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
     </div>
-  </div>
-);
-
+  );
 }
 
 export default AdminDashboard;

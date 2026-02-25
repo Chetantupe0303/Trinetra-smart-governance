@@ -17,8 +17,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["citizen", "admin"],
+      enum: ["citizen", "admin" , "worker"],
       default: "citizen"
+    },
+    credits : {
+      type : Number ,
+      default : 0 
     }
   },
   { timestamps: true }
