@@ -1,8 +1,11 @@
 import axios from "axios";
 
+// allow overriding via Vite environment variable (must start with VITE_)
 const API = axios.create({
-  // Point to Node server (not Flask). Keep Flask on 5000.
-  baseURL: "http://127.0.0.1:4000/api",
+  // Point to the Node backend. In development the server defaults to 4000,
+  // but the value can be changed via VITE_API_URL in .env.local etc.
+  baseURL:
+    import.meta.env.VITE_API_URL || "http://127.0.0.1:5001/api",
 });
 
 API.interceptors.request.use((req) => {

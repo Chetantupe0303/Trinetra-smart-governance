@@ -216,10 +216,11 @@ function ReviewStep({
         </button>
 
         <button 
+          disabled={loading}
           onClick={async () => {
-            await handleSubmit();
-            navigate("/dashboard");
-        }}
+            const ok = await handleSubmit();
+            if (ok) navigate("/dashboard");
+          }}
           className="group relative flex items-center justify-center gap-2.5 px-8 sm:px-10 py-3.5 rounded-xl font-bold text-sm
                      bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600
                      hover:from-emerald-600 hover:via-emerald-700 hover:to-teal-700

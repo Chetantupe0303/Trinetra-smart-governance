@@ -9,6 +9,8 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isSupervisorRole =
+    (role) => typeof role === "string" && (role === "supervisor" || role.startsWith("supervisor_"));
 
   const handleLogout = () => {
     toast.success("Logged out successfully!");
@@ -67,6 +69,26 @@ function Navbar() {
                       <span className="text-sm">⚙️</span>
                     </div>
                     Admin Panel
+                  </Link>
+                ) : user.role === "worker" ? (
+                  <Link
+                    to="/worker"
+                    className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
+                      <span className="text-sm">🛠️</span>
+                    </div>
+                    Worker Panel
+                  </Link>
+                ) : isSupervisorRole(user.role) ? (
+                  <Link
+                    to="/supervisor"
+                    className="group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 transition-all duration-300 border border-transparent hover:border-blue-100/80"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-300">
+                      <span className="text-sm">👷</span>
+                    </div>
+                    Supervisor Panel
                   </Link>
                 ) : (
                   <>
@@ -179,7 +201,13 @@ function Navbar() {
                   <div>
                     <p className="text-sm font-bold text-gray-800">{user?.name || "User"}</p>
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                      {user?.role === "admin" ? "Administrator" : "Citizen"}
+                      {user?.role === "admin"
+                        ? "Administrator"
+                        : user?.role === "worker"
+                        ? "Worker"
+                        : isSupervisorRole(user?.role)
+                        ? "Supervisor"
+                        : "Citizen"}
                     </p>
                   </div>
                 </div>
@@ -192,6 +220,24 @@ function Navbar() {
                   >
                     <span className="text-base">⚙️</span>
                     Admin Panel
+                  </Link>
+                ) : user.role === "worker" ? (
+                  <Link
+                    to="/worker"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-all duration-300"
+                  >
+                    <span className="text-base">🛠️</span>
+                    Worker Panel
+                  </Link>
+                ) : isSupervisorRole(user.role) ? (
+                  <Link
+                    to="/supervisor"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-all duration-300"
+                  >
+                    <span className="text-base">👷</span>
+                    Supervisor Panel
                   </Link>
                 ) : (
                   <>

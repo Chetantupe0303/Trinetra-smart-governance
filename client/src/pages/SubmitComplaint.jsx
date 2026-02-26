@@ -8,12 +8,33 @@ import DetailsStep from "../components/DetailsStep";
 import LocationStep from "../components/LocationStep";
 import ReviewStep from "../components/ReviewStep";
 
+function getCurrentCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 7000,
+        maximumAge: 60000,
+      }
+    );
+  });
+}
+
 function SubmitComplaint() {
   const { user } = useContext(AuthContext);
-
-  if (user && user.role === "admin") {
-    return <Navigate to="/admin" />;
-  }
+  const isAdmin = user && user.role === "admin";
 
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState("");
@@ -22,31 +43,49 @@ function SubmitComplaint() {
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false); // ✅ added
 
+  if (isAdmin) {
+    return <Navigate to="/admin" />;
+  }
+
   const nextStep = () => setStep((prev) => prev + 1);
   const prevStep = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
-  if (loading) return false;
-  try {
-    setLoading(true);
+    if (loading) return false;
 
-    const formData = new FormData();
-    formData.append("description", description);
-    formData.append("priority", priority);
-    formData.append("location", location);
-    
-    if (image) formData.append("image", image);
-    await API.post("/complaints", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return true; // ✅ important
+    try {
+      setLoading(true);
+      const coordinates = await getCurrentCoordinates();
 
-  } catch (error) {
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
+      const formData = new FormData();
+      formData.append("description", description);
+      formData.append("priority", priority);
+      formData.append(
+        "location",
+        JSON.stringify({
+          address: location,
+          lat: coordinates?.lat,
+          lng: coordinates?.lng,
+        })
+      );
+
+      if (image) formData.append("image", image);
+
+      // Let the browser/axios set the multipart boundary automatically.
+      await API.post("/complaints", formData);
+
+      return true;
+    } catch (error) {
+      console.error("Failed to submit complaint:", {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">

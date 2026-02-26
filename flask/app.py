@@ -23,7 +23,7 @@ sys.path.append(repo_path)
 from model import build_model
 
 model = build_model(4)
-model.load_state_dict(torch.load(os.path.join(repo_path, "Best_image_model.pth"), map_location="cpu"))
+model.load_state_dict(torch.load(os.path.join(repo_path, "image_modelv2.pth"), map_location="cpu"))
 model.eval()
 
 transform = transforms.Compose([
