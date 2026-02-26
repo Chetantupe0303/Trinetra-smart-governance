@@ -8,6 +8,30 @@ import DetailsStep from "../components/DetailsStep";
 import LocationStep from "../components/LocationStep";
 import ReviewStep from "../components/ReviewStep";
 
+function getCurrentCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 7000,
+        maximumAge: 60000,
+      }
+    );
+  });
+}
+
 function SubmitComplaint() {
   const { user } = useContext(AuthContext);
 
@@ -29,11 +53,19 @@ function SubmitComplaint() {
   if (loading) return false;
   try {
     setLoading(true);
+    const coordinates = await getCurrentCoordinates();
 
     const formData = new FormData();
     formData.append("description", description);
     formData.append("priority", priority);
-    formData.append("location", location);
+    formData.append(
+      "location",
+      JSON.stringify({
+        address: location,
+        lat: coordinates?.lat,
+        lng: coordinates?.lng,
+      })
+    );
     
     if (image) formData.append("image", image);
     await API.post("/complaints", formData, {

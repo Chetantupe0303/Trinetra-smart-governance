@@ -28,6 +28,15 @@ exports.assignWorker = async (req, res) => {
     }
 
     complaints.forEach((complaint) => {
+      // make sure category gets normalized in case an old doc has a
+      // non‑standard value; we only want to substitute a canonical
+      // value when one exists, otherwise leave it untouched so the
+      // schema validation can catch it later if it's really bogus.
+      const canonical = Complaint.canonicalCategory(complaint.category);
+      if (canonical) {
+        complaint.category = canonical;
+      }
+
       complaint.assignedWorker = workerId;
       complaint.status = "Assigned";
       complaint.timeline.push({

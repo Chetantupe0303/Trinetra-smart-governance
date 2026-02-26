@@ -5,6 +5,99 @@ const FormData = require("form-data");
 const cloudinary = require("../config/cloudinary");
 
 const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5000";
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+
+async function geocodeAddress(address) {
+  if (!address) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      q: address,
+      format: "json",
+      limit: "1",
+    });
+
+    const response = await axios.get(`${NOMINATIM_URL}?${params.toString()}`, {
+      headers: {
+        "User-Agent": "Trinetra-smart-governance/1.0",
+      },
+      timeout: 8000,
+    });
+
+    const [firstResult] = response.data;
+    if (!firstResult) {
+      return null;
+    }
+
+    const lat = Number(firstResult.lat);
+    const lng = Number(firstResult.lon);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+
+    return { lat, lng };
+  } catch (error) {
+    console.error("Location geocoding failed:", error.message);
+    return null;
+  }
+}
+
+async function buildLocationPayload(rawLocation) {
+  if (!rawLocation) {
+    return undefined;
+  }
+
+  let parsedLocation = rawLocation;
+
+  if (typeof rawLocation === "string") {
+    const locationString = rawLocation.trim();
+    if (!locationString) {
+      return undefined;
+    }
+
+    try {
+      parsedLocation = JSON.parse(locationString);
+    } catch {
+      const geocoded = await geocodeAddress(locationString);
+      return {
+        address: locationString,
+        lat: geocoded?.lat,
+        lng: geocoded?.lng,
+      };
+    }
+  }
+
+  if (typeof parsedLocation === "object" && parsedLocation !== null) {
+    const address =
+      typeof parsedLocation.address === "string"
+        ? parsedLocation.address.trim()
+        : "";
+    const lat = Number(parsedLocation.lat);
+    const lng = Number(parsedLocation.lng);
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return {
+        address: address || undefined,
+        lat,
+        lng,
+      };
+    }
+
+    if (address) {
+      const geocoded = await geocodeAddress(address);
+      return {
+        address,
+        lat: geocoded?.lat,
+        lng: geocoded?.lng,
+      };
+    }
+  }
+
+  return undefined;
+}
 
 // Create Complaint
 const createComplaint = async (req, res, next) => {
@@ -72,36 +165,32 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // FINAL CATEGORY LOGIC
     // ---------------------
-    let finalCategory = null;
+    let finalCategory = imageResult?.classification || req.body.category;
 
-    //if (textResult && imageResult) {
-    //  if (textResult.classification === imageResult.classification) {
-    //    finalCategory = textResult.classification;
-    //  } else {
-    //    finalCategory =
-    //      textResult.confidence > imageResult.confidence
-    //       ? textResult.classification
-    //        : imageResult.classification;
-    //  }
-    //} 
-    //else if (textResult) {
-    //  finalCategory = textResult.classification;
-    //} 
-    //else if (imageResult) {
-    finalCategory = imageResult.classification;
-    //}
-
-    // REMINDER TO CHECK
+    // normalize using the model helper — this will also work if we
+    // accidentally receive an already-canonical value, since the
+    // setter on the schema will keep it unchanged.
+    // first try to translate to a canonical value; if that fails we
+    // treat it as unsupported
+    const normalizedCategory = Complaint.canonicalCategory(finalCategory);
+    if (finalCategory && !normalizedCategory) {
+      return res.status(400).json({
+        success: false,
+        message: `Unsupported category: ${finalCategory}`,
+      });
+    }
 
     // ---------------------
     // SAVE TO DATABASE
     // ---------------------
+    const locationPayload = await buildLocationPayload(req.body.location);
+
     const complaintPayload = {
       description,
       user: req.user._id,
-      category: finalCategory,
+      category: normalizedCategory,
       priority: req.body.priority,
-      location: req.body.location,
+      location: locationPayload,
     };
 
     if (req.file && req.file.buffer) {

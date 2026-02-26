@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import API from "../services/apiService";
+import MapView from "../components/MapView";
 
 const STATUS_OPTIONS = ["Submitted", "In Progress", "Completed", "Approved", "Rejected"];
 
@@ -73,6 +74,7 @@ function AdminDashboard() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchComplaints();
     fetchWorkers();
 
@@ -255,6 +257,8 @@ function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        <MapView complaints={filteredComplaints} />
 
         <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
           <table className="w-full text-sm">
