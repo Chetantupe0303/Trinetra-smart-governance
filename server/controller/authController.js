@@ -1,4 +1,3 @@
-// const User = require("../models/users");
 const User = require("../models/users");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -14,8 +13,6 @@ const registerUser = async (req, res, next) => {
       error.statusCode = 400;
       return next(error);
     }
-
-    console.log("Registering user:", { name, email });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -37,6 +34,7 @@ const registerUser = async (req, res, next) => {
     next(error);
   }
 
+  console.log("Register hit", req.body);
 };
 
 // Login
