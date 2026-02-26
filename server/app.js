@@ -9,7 +9,6 @@ const errorHandler = require("./middleware/errorMiddleware");
 const cookieParser = require("cookie-parser");
 const uploadRoutes = require("./routes/uploadRoutes");
 const workerRoutes = require("./routes/workerRoutes");
-const arcjetMiddleware = require("./config/arcjet.js");
 
 
 connectDB().then(async () => {
@@ -42,7 +41,6 @@ const corsOptions = {
 console.log("CORS origin:", corsOptions.origin);
 app.use(cors(corsOptions));
 app.use(cookieParser());
-app.use(arcjetMiddleware);
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api", complaintRoutes);

@@ -7,12 +7,12 @@ const CATEGORY_MAP = {
   water: "Drainage",
   sewage: "Drainage",
   sewer: "Drainage",
-  road-damage: "Road_Damage",
+  road_damage: "Road_Damage",
   "road damage": "Road_Damage",
   road: "Road_Damage",
   pothole: "Road_Damage",
   potholes: "Road_Damage",
-  street-light: "Street_Light",
+  street_light: "Street_Light",
   "street light": "Street_Light",
   streetlight: "Street_Light",
   electricity: "Street_Light",
@@ -27,8 +27,8 @@ const CATEGORY_MAP = {
 
 const SUPERVISOR_ROLE_BY_CATEGORY = {
   Drainage: "supervisor_drainage",
-  Road-Damage: "supervisor_road",
-  Street-Light: "supervisor_streetlight",
+  Road_Damage: "supervisor_road",
+  Street_Light: "supervisor_streetlight",
   Trash: "supervisor_trash",
 };
 
@@ -86,8 +86,7 @@ const complaintSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      enum: ["Drainage", "Road-Damage", "Street-Light", "Trash"],
-     
+      enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
       set: normalizeCategory, // automatically normalize before saving
     },
 
@@ -105,8 +104,8 @@ const complaintSchema = new mongoose.Schema(
 
     priority: {
       type: String,
-      enum: ["Low Priority", "Medium Priority", "High Priority"],
-      default: "Medium Priority",
+      enum: ["Low", "Medium", "High"],
+      default: "Medium",
     },
 
     status: {
@@ -169,8 +168,6 @@ const complaintSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Complaints = mongoose.model("Complaint", complaintSchema);
-module.exports = Complaints;
 // expose helpers so other parts of the app can reuse the same logic
 complaintSchema.statics.normalizeCategory = normalizeCategory;
 complaintSchema.statics.canonicalCategory = canonicalCategory;
