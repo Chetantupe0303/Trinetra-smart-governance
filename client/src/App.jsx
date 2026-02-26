@@ -6,11 +6,13 @@ import Dashboard from "./pages/Dashboard";
 import SubmitComplaint from "./pages/SubmitComplaint";
 import AdminDashboard from "./pages/AdminDashboard";
 import WorkerDashboard from "./pages/WorkerDashboard";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
 
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import UserRoute from "./components/UserRoute";
 import WorkerRoute from "./components/WorkerRoute";
+import SupervisorRoute from "./components/SupervisorRoute";
 import Navbar from "./components/Navbar";
 
 import { useContext } from "react";
@@ -21,8 +23,18 @@ import "react-toastify/dist/ReactToastify.css";
 
 function App() {
   const { user, loading } = useContext(AuthContext);
+  const isSupervisorRole =
+    (role) => typeof role === "string" && (role === "supervisor" || role.startsWith("supervisor_"));
 
   if (loading) return null;
+
+  const getDefaultRouteForRole = () => {
+    if (!user) return "/";
+    if (user.role === "admin") return "/admin";
+    if (user.role === "worker") return "/worker";
+    if (isSupervisorRole(user.role)) return "/supervisor";
+    return "/dashboard";
+  };
 
   return (
     <BrowserRouter>
@@ -31,7 +43,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={user ? <Navigate to="/dashboard" /> : <Login />}
+          element={user ? <Navigate to={getDefaultRouteForRole()} /> : <Login />}
         />
 
         <Route path="/register" element={<Register />} />
@@ -72,6 +84,15 @@ function App() {
   }
 />
 
+        <Route
+          path="/supervisor"
+          element={
+            <SupervisorRoute>
+              <SupervisorDashboard />
+            </SupervisorRoute>
+          }
+        />
+
 
 
       </Routes>
@@ -79,5 +100,5 @@ function App() {
   );
 }
 
-
 export default App;
+

@@ -12,7 +12,19 @@ const workerRoutes = require("./routes/workerRoutes");
 const arcjetMiddleware = require("./config/arcjet.js");
 
 
-connectDB();
+connectDB().then(async () => {
+  // correct any legacy documents that slipped through with wrong
+  // category values. This is idempotent and safe to run each start.
+  try {
+    const Complaint = require("./models/Complaint");
+    await Complaint.fixCategories();
+    console.log("Complaint categories normalized");
+  } catch (e) {
+    console.error("Error normalizing categories:", e.message);
+  }
+}).catch((e) => {
+  console.error("Database connection failed:", e.message);
+});
 
 // app.use(cors());
 const app = express();

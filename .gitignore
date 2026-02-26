@@ -1,3 +1,4 @@
 flask/python/dataset
 flask/python/dataset.zip
-env
+.env
+flask/python/.env
