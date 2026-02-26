@@ -38,6 +38,7 @@ exports.assignWorker = async (req, res) => {
       }
 
       complaint.assignedWorker = workerId;
+      complaint.assignedTo = workerId;
       complaint.status = "Assigned";
       complaint.timeline.push({
         status: "Assigned",
@@ -56,6 +57,67 @@ exports.assignWorker = async (req, res) => {
       message: `Worker assigned to ${complaints.length} complaints successfully`,
       assignedCount: complaints.length,
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// List users by role for admin dashboard tabs
+exports.getUsersByRole = async (req, res) => {
+  try {
+    const { role } = req.params;
+    const allowedRoles = ["supervisor", "worker", "citizen"];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role filter" });
+    }
+
+    let filter = { role };
+    if (role === "supervisor") {
+      filter = {
+        role: {
+          $in: [
+            "supervisor_trash",
+            "supervisor_drainage",
+            "supervisor_road",
+            "supervisor_streetlight",
+          ],
+        },
+      };
+    }
+
+    const users = await User.find(filter).select("name email role credits createdAt");
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Admin can view all complaints
+exports.getAllComplaintsForAdmin = async (req, res) => {
+  try {
+    const complaints = await Complaint.find()
+      .populate("user", "name email")
+      .populate("createdBy", "name email")
+      .populate("assignedWorker", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(complaints);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Admin map view should only include active complaints (not completed)
+exports.getActiveComplaintPins = async (req, res) => {
+  try {
+    const activeComplaints = await Complaint.find({ status: { $ne: "Completed" } })
+      .select("title description category priority status location createdAt");
+
+    res.json(activeComplaints);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

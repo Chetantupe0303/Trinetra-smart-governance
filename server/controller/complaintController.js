@@ -6,6 +6,30 @@ const cloudinary = require("../config/cloudinary");
 
 const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5000";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+const isSupervisorRole =
+  (role) => typeof role === "string" && (role === "supervisor" || role.startsWith("supervisor_"));
+
+const DESCRIPTION_CATEGORY_HINTS = [
+  { category: "Road_Damage", keywords: ["road", "pothole", "crack", "asphalt"] },
+  { category: "Street_Light", keywords: ["street light", "streetlight", "light", "electric", "electricity"] },
+  { category: "Drainage", keywords: ["drain", "drainage", "sewage", "sewer", "water logging", "water"] },
+  { category: "Trash", keywords: ["trash", "garbage", "waste", "sanitation", "dump"] },
+];
+
+function inferCategoryFromDescription(description) {
+  if (typeof description !== "string") {
+    return undefined;
+  }
+
+  const text = description.toLowerCase();
+  for (const hint of DESCRIPTION_CATEGORY_HINTS) {
+    if (hint.keywords.some((keyword) => text.includes(keyword))) {
+      return hint.category;
+    }
+  }
+
+  return undefined;
+}
 
 async function geocodeAddress(address) {
   if (!address) {
@@ -122,7 +146,6 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
-    let textResult = null;
     let imageResult = null;
 
     // // ---------------------
@@ -165,7 +188,11 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // FINAL CATEGORY LOGIC
     // ---------------------
-    let finalCategory = imageResult?.classification || req.body.category;
+    const finalCategory =
+      imageResult?.classification ||
+      req.body.category ||
+      inferCategoryFromDescription(description) ||
+      "Trash";
 
     // normalize using the model helper — this will also work if we
     // accidentally receive an already-canonical value, since the
@@ -186,9 +213,15 @@ const createComplaint = async (req, res, next) => {
     const locationPayload = await buildLocationPayload(req.body.location);
 
     const complaintPayload = {
+      title:
+        typeof req.body.title === "string" && req.body.title.trim()
+          ? req.body.title.trim()
+          : description.slice(0, 80),
       description,
       user: req.user._id,
+      createdBy: req.user._id,
       category: normalizedCategory,
+      assignedSupervisorRole: Complaint.supervisorRoleForCategory(normalizedCategory) || null,
       priority: req.body.priority,
       location: locationPayload,
     };
@@ -233,12 +266,24 @@ const getAllComplaints = async (req, res, next) => {
 
     if (req.user.role === "admin") {
       console.log(`Admin ${req.user.name} & ${req.user.role} is fetching all complaints`);
-      complaints = await Complaint.find()
+      complaints = await Complaint.find(req.complaintScope || {})
         .populate("user", "name email")
+        .populate("createdBy", "name email")
+        .populate("assignedWorker", "name email");
+    } else if (isSupervisorRole(req.user.role)) {
+      complaints = await Complaint.find(req.complaintScope || {})
+        .populate("user", "name email")
+        .populate("createdBy", "name email")
+        .populate("assignedWorker", "name email");
+    } else if (req.user.role === "worker") {
+      complaints = await Complaint.find({ assignedWorker: req.user._id })
+        .populate("user", "name email")
+        .populate("createdBy", "name email")
         .populate("assignedWorker", "name email");
     } else {
       complaints = await Complaint.find({ user: req.user._id })
         .populate("user", "name email")
+        .populate("createdBy", "name email")
         .populate("assignedWorker", "name email");
     }
 
@@ -252,44 +297,85 @@ const getAllComplaints = async (req, res, next) => {
 const updateComplaintStatus = async (req, res , next) => {
   try {
     const { status, workerId } = req.body;
+    let resolvedWorkerId = workerId;
 
     if (status === "Assigned") {
-      if (!workerId) {
-        return res.status(400).json({
-          success: false,
-          message: "workerId is required when status is Assigned.",
-        });
-      }
+      if (resolvedWorkerId) {
+        const worker = await User.findById(resolvedWorkerId);
+        if (!worker || worker.role !== "worker") {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid workerId.",
+          });
+        }
+      } else {
+        const availableWorkers = await User.find({ role: "worker" }).select("_id");
+        if (!availableWorkers.length) {
+          return res.status(400).json({
+            success: false,
+            message: "No workers are available for assignment.",
+          });
+        }
 
-      const worker = await User.findById(workerId);
-      if (!worker || worker.role !== "worker") {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid workerId.",
+        const workerIds = availableWorkers.map((worker) => worker._id);
+        const activeCounts = await Complaint.aggregate([
+          {
+            $match: {
+              assignedWorker: { $in: workerIds },
+              status: { $in: ["Assigned", "In Progress"] },
+            },
+          },
+          {
+            $group: {
+              _id: "$assignedWorker",
+              count: { $sum: 1 },
+            },
+          },
+        ]);
+
+        const countByWorker = new Map(
+          activeCounts.map((item) => [String(item._id), item.count])
+        );
+
+        availableWorkers.sort((a, b) => {
+          const countA = countByWorker.get(String(a._id)) || 0;
+          const countB = countByWorker.get(String(b._id)) || 0;
+          return countA - countB;
         });
+
+        resolvedWorkerId = availableWorkers[0]._id;
       }
+    }
+
+    const filter = { _id: req.params.id };
+    if (isSupervisorRole(req.user.role)) {
+      Object.assign(filter, req.complaintScope || {});
     }
 
     const update = { status };
     if (status === "Assigned") {
-      update.assignedWorker = workerId;
+      update.assignedWorker = resolvedWorkerId;
+      update.assignedTo = resolvedWorkerId;
       update.$push = {
         timeline: {
           status: "Assigned",
           updatedBy: req.user._id,
-          note: "Complaint assigned to worker",
+          note: workerId
+            ? "Complaint assigned to worker"
+            : "Complaint auto-assigned to least-loaded worker",
         },
       };
     }
 
-    const updatedComplaint = await Complaint.findByIdAndUpdate(req.params.id, update, {
+    const updatedComplaint = await Complaint.findOneAndUpdate(filter, update, {
       returnDocument: "after",
     })
       .populate("user", "name email")
+      .populate("createdBy", "name email")
       .populate("assignedWorker", "name email");
 
     if (!updatedComplaint) {
-      return res.status(404).json({ message: "Complaint not found" });
+      return res.status(404).json({ message: "Complaint not found or access denied" });
     }
 
     res.json(updatedComplaint);

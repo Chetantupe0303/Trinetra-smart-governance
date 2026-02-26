@@ -19,16 +19,20 @@ const registerUser = async (req, res, next) => {
     const user = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role: "citizen",
     });
 
     res.status(201).json({
       message: "User registered successfully",
     });
   } catch (error) {
+    // convert common Mongo errors to client-friendly status
+    if (error.name === "ValidationError" || error.code === 11000) {
+      error.statusCode = 400;
+    }
     next(error);
   }
-
 
   console.log("Register hit", req.body);
 };
@@ -53,7 +57,11 @@ const loginUser = async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: user._id,
+        role: user.role,
+        name: user.name,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -79,5 +87,5 @@ module.exports = {
   getMe: (req, res) => {
     // Return the authenticated user's profile
     res.json(req.user);
-  }
+  },
 };

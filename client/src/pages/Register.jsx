@@ -12,7 +12,7 @@ function Register() {
   const handleRegister = async (e) => {
     e.preventDefault(); // 🚨 Prevent page refresh
 
-    console.log("Sending:", { name, email, password });
+    console.log("Sending:", { name, email, password, role: "citizen" });
 
     if (!name || !email || !password) {
       toast.error("All fields are required");
