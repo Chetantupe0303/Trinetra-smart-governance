@@ -20,13 +20,13 @@ const complaintSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
+      enum: ["Drainage", "Road-Damage", "Street-Light", "Trash"],
     },
 
     priority: {
       type: String,
-      enum: ["Low", "Medium", "High"],
-      default: "Medium",
+      enum: ["Low Priority", "Medium Priority", "High Priority"],
+      default: "Medium Priority",
     },
 
     status: {
@@ -84,4 +84,5 @@ const complaintSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Complaint", complaintSchema);
+const Complaints = mongoose.model("Complaint", complaintSchema);
+module.exports = Complaints;

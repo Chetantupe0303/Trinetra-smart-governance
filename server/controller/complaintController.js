@@ -35,17 +35,17 @@ const createComplaint = async (req, res, next) => {
     // // ---------------------
     // // TEXT CLASSIFICATION
     // // ---------------------
-    // //if (description) {
-    // //  try {
-    // //    const textResponse = await axios.post(
-    // //      `${FLASK_URL}/classify-text`,
-    // //      { text: description }
-    // //    );
-    //     textResult = textResponse.data; // { classification, confidence }
-    //   } catch (e) {
-    //     console.error("Text classification failed:", e.response?.data || e.message);
-    //   }
-    // }
+    if (description) {
+      try {
+        const textResponse = await axios.post(
+          `${FLASK_URL}/classify-text`,
+          { text: description }
+        );
+         textResult = textResponse.data; // { classification, confidence }
+       } catch (e) {
+         console.error("Text classification failed:", e.response?.data || e.message);
+       }
+     }
 
     // ---------------------
     // IMAGE CLASSIFICATION
@@ -72,24 +72,29 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // FINAL CATEGORY LOGIC
     // ---------------------
-    let finalCategory = null;
 
-    //if (textResult && imageResult) {
-    //  if (textResult.classification === imageResult.classification) {
-    //    finalCategory = textResult.classification;
-    //  } else {
-    //    finalCategory =
-    //      textResult.confidence > imageResult.confidence
-    //       ? textResult.classification
-    //        : imageResult.classification;
-    //  }
-    //} 
-    //else if (textResult) {
-    //  finalCategory = textResult.classification;
-    //} 
-    //else if (imageResult) {
-    finalCategory = imageResult.classification;
-    //}
+  let finalCategory = null;
+  let finalPriority = req.body.priority || "Medium Priority";
+
+  const IMAGE_THRESHOLD = 0.35;
+
+  if (imageResult && textResult) {
+    if (imageResult.confidence >= IMAGE_THRESHOLD) {
+      finalCategory = imageResult.classification;
+    } else {
+      finalCategory = textResult.category;
+    }
+
+    finalPriority = textResult.priority;
+
+  } else if (imageResult) {
+    if (imageResult.confidence >= IMAGE_THRESHOLD) {
+      finalCategory = imageResult.classification;
+    }
+  } else if (textResult) {
+    finalCategory = textResult.category;
+    finalPriority = textResult.priority;
+  }
 
     // REMINDER TO CHECK
 
@@ -100,7 +105,7 @@ const createComplaint = async (req, res, next) => {
       description,
       user: req.user._id,
       category: finalCategory,
-      priority: req.body.priority,
+      priority: finalPriority,
       location: req.body.location,
     };
 

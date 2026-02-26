@@ -1,3 +1,4 @@
+// const User = require("../models/users");
 const User = require("../models/users");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -14,6 +15,8 @@ const registerUser = async (req, res, next) => {
       return next(error);
     }
 
+    console.log("Registering user:", { name, email });
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -28,9 +31,6 @@ const registerUser = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-
-
-  console.log("Register hit", req.body);
 };
 
 // Login
