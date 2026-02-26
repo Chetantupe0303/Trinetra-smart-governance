@@ -63,21 +63,18 @@ function App() {
           }
         />
 
-          <Route
-  path="/worker"
-  element={
-    <WorkerRoute>
-      <WorkerDashboard />
-    </WorkerRoute>
-  }
-/>
-
-
-
+        <Route
+          path="/worker"
+          element={
+            <WorkerRoute>
+              <WorkerDashboard />
+            </WorkerRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
 }
 
-
 export default App;
+
