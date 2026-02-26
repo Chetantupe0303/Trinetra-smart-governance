@@ -25,13 +25,17 @@ function ComplaintCard({ complaint }) {
   };
 
   const priorityConfig = {
-    High: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-    Medium: {
+    "High Priority": { 
+      bg: "bg-red-50", 
+      text: "text-red-700", 
+      border: "border-red-200" 
+    },
+    "Medium Priority": {
       bg: "bg-amber-50",
       text: "text-amber-700",
       border: "border-amber-200",
     },
-    Low: {
+    "Low Priority": {
       bg: "bg-emerald-50",
       text: "text-emerald-700",
       border: "border-emerald-200",
@@ -141,7 +145,7 @@ function ComplaintCard({ complaint }) {
             <span
               className={`inline-flex items-center px-3 py-1.5 rounded-xl border text-xs font-bold ${priority.bg} ${priority.text} ${priority.border}`}
             >
-              {complaint.priority} Priority
+              {complaint.priority}
             </span>
           )}
 
