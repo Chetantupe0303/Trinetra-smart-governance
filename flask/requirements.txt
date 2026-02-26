@@ -5,4 +5,4 @@ pillow==11.3.0
 huggingface_hub==0.35.0
 flask-cors==5.0.0
 requests==2.32.5
-dotenv
+dotenv==0.9.9

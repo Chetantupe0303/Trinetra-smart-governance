@@ -151,17 +151,17 @@ const createComplaint = async (req, res, next) => {
     // // ---------------------
     // // TEXT CLASSIFICATION
     // // ---------------------
-    // //if (description) {
-    // //  try {
-    // //    const textResponse = await axios.post(
-    // //      `${FLASK_URL}/classify-text`,
-    // //      { text: description }
-    // //    );
-    //     textResult = textResponse.data; // { classification, confidence }
-    //   } catch (e) {
-    //     console.error("Text classification failed:", e.response?.data || e.message);
-    //   }
-    // }
+    if (description) {
+      try {
+        const textResponse = await axios.post(
+          `${FLASK_URL}/classify-text`,
+          { text: description }
+        );
+         textResult = textResponse.data; // { classification, confidence }
+       } catch (e) {
+         console.error("Text classification failed:", e.response?.data || e.message);
+       }
+     }
 
     // ---------------------
     // IMAGE CLASSIFICATION
@@ -188,24 +188,31 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // FINAL CATEGORY LOGIC
     // ---------------------
-    const finalCategory =
-      imageResult?.classification ||
-      req.body.category ||
-      inferCategoryFromDescription(description) ||
-      "Trash";
 
-    // normalize using the model helper — this will also work if we
-    // accidentally receive an already-canonical value, since the
-    // setter on the schema will keep it unchanged.
-    // first try to translate to a canonical value; if that fails we
-    // treat it as unsupported
-    const normalizedCategory = Complaint.canonicalCategory(finalCategory);
-    if (finalCategory && !normalizedCategory) {
-      return res.status(400).json({
-        success: false,
-        message: `Unsupported category: ${finalCategory}`,
-      });
+  let finalCategory = null;
+  let finalPriority = req.body.priority || "Medium Priority";
+
+  const IMAGE_THRESHOLD = 0.35;
+
+  if (imageResult && textResult) {
+    if (imageResult.confidence >= IMAGE_THRESHOLD) {
+      finalCategory = imageResult.classification;
+    } else {
+      finalCategory = textResult.category;
     }
+
+    finalPriority = textResult.priority;
+
+  } else if (imageResult) {
+    if (imageResult.confidence >= IMAGE_THRESHOLD) {
+      finalCategory = imageResult.classification;
+    }
+  } else if (textResult) {
+    finalCategory = textResult.category;
+    finalPriority = textResult.priority;
+  }
+
+    // REMINDER TO CHECK
 
     // ---------------------
     // SAVE TO DATABASE
@@ -219,10 +226,13 @@ const createComplaint = async (req, res, next) => {
           : description.slice(0, 80),
       description,
       user: req.user._id,
+      category: finalCategory,
+      priority: finalPriority,
+      location: req.body.location,
       createdBy: req.user._id,
-      category: normalizedCategory,
+     
       assignedSupervisorRole: Complaint.supervisorRoleForCategory(normalizedCategory) || null,
-      priority: req.body.priority,
+     
       location: locationPayload,
     };
 
