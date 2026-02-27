@@ -10,4 +10,4 @@ COLLECTION_NAME = "users"
 VECTOR_INDEX_NAME = "face_index"
 
 # Face recognition threshold (tune after testing)
-MATCH_THRESHOLD = 0.8
+MATCH_THRESHOLD = 0.6

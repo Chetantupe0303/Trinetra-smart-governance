@@ -183,7 +183,7 @@ def recognize():
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     name, error = engine.recognize(rgb)
-
+    
     if error:
         return jsonify({"recognized": False, "error": error})
 

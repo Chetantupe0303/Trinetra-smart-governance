@@ -71,23 +71,30 @@ class FaceNetEngine:
             return None, "No face detected"
 
         pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": config.VECTOR_INDEX_NAME,
-                    "path": "embedding",
-                    "queryVector": embedding,
-                    "numCandidates": 100,
-                    "limit": 1,
-                    "filter": {
-                        "faceRegistered": True,
-                        "role": "worker"
-                    }
-                }
+        {
+        "$vectorSearch": {
+            "index": config.VECTOR_INDEX_NAME,
+            "path": "embedding",
+            "queryVector": embedding,
+            "numCandidates": 100,
+            "limit": 1,
+            "filter": {
+                "faceRegistered": True
+              }
+          }
+        },
+        {
+        "$project": {
+            "name": 1,
+            "role": 1,
+            "status": 1,
+            "score": {"$meta": "vectorSearchScore"}
             }
-        ]
+        }
+    ]
 
         results = list(self.users.aggregate(pipeline))
-
+        print("Vector Search Result:", results)
         if len(results) == 0:
             return None, "No match found"
 
@@ -97,7 +104,7 @@ class FaceNetEngine:
         # Print for tuning
         print("Similarity Score:", score)
 
-        if score < config.MATCH_THRESHOLD:
+        if score > config.MATCH_THRESHOLD:
             self.users.update_one(
                 {"_id": best_match["_id"]},
                 {"$set": {"status": "Available"}}
