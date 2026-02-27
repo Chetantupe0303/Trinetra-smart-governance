@@ -16,6 +16,7 @@ const {
   getAllComplaints,
   updateComplaintStatus,
   submitComplaintFeedback,
+  sendCompletionEmailToCitizen,
 } = require("../controller/complaintController");
 
 const { getWorkers } = require("../controller/adminController");
@@ -77,6 +78,21 @@ router.post(
   "/complaints/:id/feedback",
   protect,
   submitComplaintFeedback
+);
+
+router.post(
+  "/complaints/:id/send-completion-email",
+  protect,
+  complaintScope,
+  authorizeRoles(
+    "admin",
+    "supervisor",
+    "supervisor_trash",
+    "supervisor_drainage",
+    "supervisor_road",
+    "supervisor_streetlight"
+  ),
+  sendCompletionEmailToCitizen
 );
 
 /* ===================== WORKER UPDATE ===================== */

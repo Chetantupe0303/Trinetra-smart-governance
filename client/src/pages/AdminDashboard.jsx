@@ -12,6 +12,54 @@ function AdminDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [mapPins, setMapPins] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [detailsPopup, setDetailsPopup] = useState({
+    open: false,
+    x: 16,
+    y: 16,
+    width: 420,
+    height: 520,
+    complaint: null,
+  });
+  const [photoModal, setPhotoModal] = useState({ open: false, title: "", url: "" });
+
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (typeof imagePath !== "string") return null;
+    if (imagePath.startsWith("http") || imagePath.startsWith("data:")) return imagePath;
+    return `http://127.0.0.1:5001${imagePath}`;
+  };
+
+  const closeDetailsPopup = () => {
+    setDetailsPopup({
+      open: false,
+      x: 16,
+      y: 16,
+      width: 420,
+      height: 520,
+      complaint: null,
+    });
+    setPhotoModal({ open: false, title: "", url: "" });
+  };
+
+  const openDetailsPopup = (complaint, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const gap = 10;
+    const margin = 16;
+    const cardWidth = Math.min(460, Math.max(300, window.innerWidth * 0.42));
+    const cardHeight = Math.min(560, Math.max(380, window.innerHeight * 0.7));
+    let x = rect.right + gap;
+    let y = rect.top;
+
+    const maxX = window.innerWidth - cardWidth - margin;
+    const maxY = window.innerHeight - cardHeight - margin;
+
+    if (x > maxX) {
+      x = Math.max(margin, rect.left - cardWidth - gap);
+    }
+    y = Math.min(Math.max(margin, y), Math.max(margin, maxY));
+
+    setDetailsPopup({ open: true, x, y, width: cardWidth, height: cardHeight, complaint });
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -83,8 +131,9 @@ function AdminDashboard() {
   );
 
   const renderComplaintsTable = () => (
-    <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
-      <table className="w-full text-sm">
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+        <table className="w-full text-sm">
         <thead className="bg-slate-100 text-slate-600">
           <tr>
             <th className="p-3 text-left">Title</th>
@@ -92,6 +141,7 @@ function AdminDashboard() {
             <th className="p-3 text-left">Status</th>
             <th className="p-3 text-left">Citizen</th>
             <th className="p-3 text-left">Worker</th>
+            <th className="p-3 text-left">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -102,17 +152,137 @@ function AdminDashboard() {
               <td className="p-3">{complaint.status}</td>
               <td className="p-3">{complaint.createdBy?.name || complaint.user?.name || "-"}</td>
               <td className="p-3">{complaint.assignedWorker?.name || "-"}</td>
+              <td className="p-3">
+                <button
+                  type="button"
+                  onClick={(event) => openDetailsPopup(complaint, event)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  View
+                </button>
+              </td>
             </tr>
           ))}
           {complaints.length === 0 && (
             <tr>
-              <td colSpan="5" className="p-6 text-center text-slate-500">
+              <td colSpan="6" className="p-6 text-center text-slate-500">
                 {loading ? "Loading..." : "No complaints found"}
               </td>
             </tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
+
+      {detailsPopup.open && detailsPopup.complaint && (
+        <>
+          <div
+            className="fixed inset-0 z-[1000] bg-black/10"
+            onClick={closeDetailsPopup}
+          />
+          <div
+            className="fixed z-[1010] overflow-y-auto rounded-lg border bg-white p-4 shadow-xl"
+            style={{
+              width: detailsPopup.width,
+              height: detailsPopup.height,
+              left: detailsPopup.x,
+              top: detailsPopup.y,
+            }}
+          >
+            <div className="mb-3 flex items-start justify-between">
+              <h4 className="text-sm font-semibold text-slate-800">
+              Complaint Details
+              </h4>
+              <button
+                type="button"
+                onClick={closeDetailsPopup}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm font-semibold leading-none text-slate-700 hover:bg-slate-50"
+                aria-label="Close complaint details"
+              >
+                X
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md bg-slate-50 p-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Title</p>
+                <p className="mt-1 text-slate-800">{detailsPopup.complaint.title || "Untitled"}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md bg-slate-50 p-2.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Category</p>
+                  <p className="mt-1 text-slate-800">{detailsPopup.complaint.category || "-"}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-2.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Status</p>
+                  <p className="mt-1 text-slate-800">{detailsPopup.complaint.status || "-"}</p>
+                </div>
+              </div>
+              <div className="rounded-md bg-slate-50 p-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Description</p>
+                <p className="mt-1 line-clamp-4 text-slate-800">
+                  {detailsPopup.complaint.description || "-"}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const problemUrl = resolveImageUrl(detailsPopup.complaint.imageUrl);
+                    if (!problemUrl) return;
+                    setPhotoModal({ open: true, title: "Problem Photo", url: problemUrl });
+                  }}
+                  disabled={!resolveImageUrl(detailsPopup.complaint.imageUrl)}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View Problem Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const resolvedUrl = resolveImageUrl(
+                      detailsPopup.complaint.completionImage ||
+                        detailsPopup.complaint.proofImageUrl
+                    );
+                    if (!resolvedUrl) return;
+                    setPhotoModal({ open: true, title: "Resolved Photo", url: resolvedUrl });
+                  }}
+                  disabled={
+                    !resolveImageUrl(
+                      detailsPopup.complaint.completionImage ||
+                        detailsPopup.complaint.proofImageUrl
+                    )
+                  }
+                  className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View Resolved Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {photoModal.open && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative w-full max-w-4xl rounded-lg bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h5 className="text-sm font-semibold text-slate-800">{photoModal.title}</h5>
+              <button
+                type="button"
+                onClick={() => setPhotoModal({ open: false, title: "", url: "" })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <img
+              src={photoModal.url}
+              alt={photoModal.title}
+              className="max-h-[75vh] w-full rounded-md object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 

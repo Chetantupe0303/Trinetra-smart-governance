@@ -1,6 +1,7 @@
 // Adds a Mongo filter to req.complaintScope based on authenticated role.
 // Admin: all complaints
-// Supervisors: only own mapped category and active (not Completed)
+// Supervisors: only own mapped category and active complaints.
+// Completed complaints remain visible for 8 hours after completion.
 // Others: personal visibility handled in controller
 const SUPERVISOR_ROLE_CATEGORY_MAP = {
   supervisor: "Trash",
@@ -23,8 +24,20 @@ const complaintScope = (req, res, next) => {
 
   const supervisorCategory = SUPERVISOR_ROLE_CATEGORY_MAP[req.user.role];
   if (supervisorCategory) {
+    const completedVisibleSince = new Date(Date.now() - 8 * 60 * 60 * 1000);
+
     req.complaintScope = {
-      status: { $ne: "Completed" },
+      $and: [
+        {
+          $or: [
+            { status: { $ne: "Completed" } },
+            {
+              status: "Completed",
+              completedAt: { $gte: completedVisibleSince },
+            },
+          ],
+        },
+      ],
       $or: [
         { assignedSupervisorRole: req.user.role },
         {

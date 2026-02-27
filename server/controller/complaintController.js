@@ -3,6 +3,7 @@ const User = require("../models/users");
 const axios = require("axios");
 const FormData = require("form-data");
 const cloudinary = require("../config/cloudinary");
+const { sendComplaintCompletedEmail } = require("../services/email/emailService");
 
 const FLASK_URL = process.env.FLASK_URL || "http://127.0.0.1:5000";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -400,6 +401,14 @@ const updateComplaintStatus = async (req, res , next) => {
       Object.assign(filter, req.complaintScope || {});
     }
 
+    const existingComplaint = await Complaint.findOne(filter).select("status");
+    if (!existingComplaint) {
+      return res.status(404).json({ message: "Complaint not found or access denied" });
+    }
+
+    const isTransitionToCompleted =
+      status === "Completed" && existingComplaint.status !== "Completed";
+
     const update = { status };
     if (status === "Assigned") {
       update.assignedWorker = resolvedWorkerId;
@@ -411,6 +420,18 @@ const updateComplaintStatus = async (req, res , next) => {
           note: workerId
             ? "Complaint assigned to worker"
             : "Complaint auto-assigned to least-loaded worker",
+        },
+      };
+    }
+
+    if (isTransitionToCompleted) {
+      update.completedAt = new Date();
+      update.$push = {
+        ...(update.$push || {}),
+        timeline: {
+          status: "Completed",
+          updatedBy: req.user._id,
+          note: "Complaint marked as completed",
         },
       };
     }
@@ -427,6 +448,41 @@ const updateComplaintStatus = async (req, res , next) => {
     }
 
     res.json(updatedComplaint);
+
+    if (isTransitionToCompleted) {
+      setImmediate(async () => {
+        try {
+          const recipientEmail = updatedComplaint.user?.email;
+          if (!recipientEmail) {
+            console.warn(
+              `Completion email skipped: citizen email missing for complaint ${updatedComplaint._id}`
+            );
+            return;
+          }
+
+          const result = await sendComplaintCompletedEmail({
+            to: recipientEmail,
+            citizenName: updatedComplaint.user?.name,
+            complaintId: updatedComplaint._id?.toString(),
+            description: updatedComplaint.description,
+            category: updatedComplaint.category,
+            completionDate: updatedComplaint.completedAt || new Date(),
+            supervisorName: req.user?.name || "Supervisor",
+          });
+
+          if (result?.skipped) {
+            console.warn(
+              `Completion email skipped for complaint ${updatedComplaint._id}: ${result.reason}`
+            );
+          }
+        } catch (mailError) {
+          console.error(
+            `Failed to send completion email for complaint ${updatedComplaint._id}:`,
+            mailError.message
+          );
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -496,9 +552,60 @@ const submitComplaintFeedback = async (req, res, next) => {
   }
 };
 
+const sendCompletionEmailToCitizen = async (req, res, next) => {
+  try {
+    const filter = { _id: req.params.id };
+
+    if (req.user.role !== "admin" && isSupervisorRole(req.user.role)) {
+      Object.assign(filter, req.complaintScope || {});
+    }
+
+    const complaint = await Complaint.findOne(filter)
+      .populate("user", "name email")
+      .populate("createdBy", "name email");
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found or access denied" });
+    }
+
+    if (!["Completed", "Approved"].includes(complaint.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Email can be sent only when complaint status is Completed or Approved.",
+      });
+    }
+
+    const citizen = complaint.user || complaint.createdBy;
+    if (!citizen?.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Citizen registered email is not available for this complaint.",
+      });
+    }
+
+    await sendComplaintCompletedEmail({
+      to: citizen.email,
+      citizenName: citizen.name,
+      complaintId: complaint._id?.toString(),
+      description: complaint.description,
+      category: complaint.category,
+      completionDate: complaint.completedAt || complaint.updatedAt || new Date(),
+      supervisorName: req.user?.name || "Supervisor",
+    });
+
+    return res.json({
+      success: true,
+      message: `Email sent successfully to ${citizen.email}`,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   createComplaint,
   getAllComplaints,
   updateComplaintStatus,
   submitComplaintFeedback,
+  sendCompletionEmailToCitizen,
 };

@@ -8,6 +8,7 @@ function SupervisorDashboard() {
   const [complaints, setComplaints] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [selectedWorkerByComplaint, setSelectedWorkerByComplaint] = useState({});
+  const [sendingEmailByComplaint, setSendingEmailByComplaint] = useState({});
   const [loading, setLoading] = useState(false);
 
   const fetchData = async () => {
@@ -60,6 +61,20 @@ function SupervisorDashboard() {
     }));
   };
 
+  const sendCompletionEmail = async (complaintId) => {
+    try {
+      setSendingEmailByComplaint((prev) => ({ ...prev, [complaintId]: true }));
+      const response = await API.post(`/complaints/${complaintId}/send-completion-email`);
+      window.alert(response.data?.message || "Email sent to citizen successfully.");
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Failed to send email to citizen.";
+      window.alert(message);
+    } finally {
+      setSendingEmailByComplaint((prev) => ({ ...prev, [complaintId]: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -69,7 +84,7 @@ function SupervisorDashboard() {
             Category scope: <span className="font-semibold">{categoryLabel}</span>
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Showing active complaints only (excluding Completed).
+            Completed complaints remain visible for 8 hours after completion.
           </p>
         </div>
 
@@ -107,24 +122,41 @@ function SupervisorDashboard() {
                     </select>
                   </td>
                   <td className="p-3">
-                    <select
-                      className="rounded-lg border px-3 py-2"
-                      value={complaint.status}
-                      onChange={(e) => updateStatus(complaint._id, e.target.value)}
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex flex-col gap-2">
+                      <select
+                        className="rounded-lg border px-3 py-2"
+                        value={complaint.status}
+                        onChange={(e) => updateStatus(complaint._id, e.target.value)}
+                      >
+                        {STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => sendCompletionEmail(complaint._id)}
+                        disabled={
+                          !["Completed", "Approved"].includes(complaint.status) ||
+                          Boolean(sendingEmailByComplaint[complaint._id])
+                        }
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sendingEmailByComplaint[complaint._id]
+                          ? "Sending..."
+                          : "Send Email to Citizen"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {complaints.length === 0 && (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500">
-                    {loading ? "Loading complaints..." : "No active complaints in your category."}
+                    {loading
+                      ? "Loading complaints..."
+                      : "No complaints in your category right now."}
                   </td>
                 </tr>
               )}
