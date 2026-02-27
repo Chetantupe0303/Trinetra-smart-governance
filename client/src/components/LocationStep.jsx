@@ -191,7 +191,7 @@ function LocationStep({
               )}
             </div>
 
-            {/* Secondary Address Input */}
+            {/* Secondary Address Input location */}
             <div className="relative mb-4">
               <input
                 type="text"
