@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
+
 const { protect, adminOnly } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
+const { complaintScope } = require("../middleware/complaintScopeMiddleware");
 
 const multer = require("multer");
 const Complaint = require("../models/Complaint");
@@ -12,35 +15,113 @@ const {
   createComplaint,
   getAllComplaints,
   updateComplaintStatus,
-} = require("../controller/complaintController"); // ✅ FIXED
+  submitComplaintFeedback,
+  sendCompletionEmailToCitizen,
+} = require("../controller/complaintController");
 
-router.post("/complaints", protect, upload.single("image"), createComplaint);
+const { getWorkers } = require("../controller/adminController");
 
-router.get("/complaints", protect, getAllComplaints);
+/* ===================== CREATE ===================== */
 
-router.patch("/complaints/:id/status", protect, adminOnly, updateComplaintStatus);
+router.post(
+  "/complaints",
+  protect,
+  upload.single("image"),
+  createComplaint
+);
+
+/* ===================== GET ===================== */
+
+router.get(
+  "/complaints",
+  protect,
+  complaintScope,
+  getAllComplaints
+);
+
+/* ===================== GET WORKERS ===================== */
+
+router.get(
+  "/complaints/workers",
+  protect,
+  authorizeRoles(
+    "admin",
+    "supervisor",
+    "supervisor_trash",
+    "supervisor_drainage",
+    "supervisor_road",
+    "supervisor_streetlight"
+  ),
+  getWorkers
+);
+
+/* ===================== UPDATE STATUS ===================== */
+
+router.patch(
+  "/complaints/:id/status",
+  protect,
+  complaintScope,
+  authorizeRoles(
+    "admin",
+    "supervisor",
+    "supervisor_trash",
+    "supervisor_drainage",
+    "supervisor_road",
+    "supervisor_streetlight"
+  ),
+  updateComplaintStatus
+);
+
+/* ===================== FEEDBACK ===================== */
+
+router.post(
+  "/complaints/:id/feedback",
+  protect,
+  submitComplaintFeedback
+);
+
+router.post(
+  "/complaints/:id/send-completion-email",
+  protect,
+  complaintScope,
+  authorizeRoles(
+    "admin",
+    "supervisor",
+    "supervisor_trash",
+    "supervisor_drainage",
+    "supervisor_road",
+    "supervisor_streetlight"
+  ),
+  sendCompletionEmailToCitizen
+);
+
+/* ===================== WORKER UPDATE ===================== */
 
 router.patch("/:id/worker-update", protect, async (req, res) => {
-  const complaint = await Complaint.findById(req.params.id);
+  try {
+    const complaint = await Complaint.findById(req.params.id);
 
-  if (!complaint)
-    return res.status(404).json({ message: "Not found" });
+    if (!complaint)
+      return res.status(404).json({ message: "Not found" });
 
-  complaint.status = req.body.status;
+    complaint.status = req.body.status;
 
-  if (req.body.completionImage) {
-    complaint.completionImage = req.body.completionImage;
-    complaint.completedAt = new Date();
+    if (req.body.completionImage) {
+      complaint.completionImage = req.body.completionImage;
+      complaint.completedAt = new Date();
+    }
+
+    complaint.timeline.push({
+      status: req.body.status,
+      updatedBy: req.user._id,
+    });
+
+    await complaint.save();
+
+    res.json({ message: "Updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
   }
-
-  complaint.timeline.push({
-    status: req.body.status,
-    updatedBy: req.user._id, // 🔥 use _id now
-  });
-
-  await complaint.save();
-
-  res.json({ message: "Updated successfully" });
 });
 
 module.exports = router;

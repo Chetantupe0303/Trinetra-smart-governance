@@ -1,340 +1,357 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import API from "../services/apiService";
+import MapView from "../components/MapView";
 
-const STATUS_OPTIONS = ["Submitted", "In Progress", "Completed", "Approved", "Rejected"];
+const TABS = ["Supervisors", "Workers", "Citizens", "Complaints"];
 
 function AdminDashboard() {
-  const [complaints, setComplaints] = useState([]);
+  const [activeTab, setActiveTab] = useState("Complaints");
+  const [supervisors, setSupervisors] = useState([]);
   const [workers, setWorkers] = useState([]);
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [selectedComplaints, setSelectedComplaints] = useState({});
-  const [bulkWorkerId, setBulkWorkerId] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
-  const previousStatusRef = useRef({});
+  const [citizens, setCitizens] = useState([]);
+  const [complaints, setComplaints] = useState([]);
+  const [mapPins, setMapPins] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [detailsPopup, setDetailsPopup] = useState({
+    open: false,
+    x: 16,
+    y: 16,
+    width: 420,
+    height: 520,
+    complaint: null,
+  });
+  const [photoModal, setPhotoModal] = useState({ open: false, title: "", url: "" });
 
-  async function fetchComplaints() {
-    try {
-      const res = await API.get("/complaints", { withCredentials: true });
-      const nextComplaints = res.data;
-      const movedToInProgress = [];
-      const nextStatusMap = {};
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (typeof imagePath !== "string") return null;
+    if (imagePath.startsWith("http") || imagePath.startsWith("data:")) return imagePath;
+    return `http://127.0.0.1:5001${imagePath}`;
+  };
 
-      nextComplaints.forEach((complaint) => {
-        const previousStatus = previousStatusRef.current[complaint._id];
-        if (
-          previousStatus &&
-          previousStatus !== "In Progress" &&
-          complaint.status === "In Progress"
-        ) {
-          movedToInProgress.push(complaint);
-        }
+  const closeDetailsPopup = () => {
+    setDetailsPopup({
+      open: false,
+      x: 16,
+      y: 16,
+      width: 420,
+      height: 520,
+      complaint: null,
+    });
+    setPhotoModal({ open: false, title: "", url: "" });
+  };
 
-        nextStatusMap[complaint._id] = complaint.status;
-      });
+  const openDetailsPopup = (complaint, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const gap = 10;
+    const margin = 16;
+    const cardWidth = Math.min(460, Math.max(300, window.innerWidth * 0.42));
+    const cardHeight = Math.min(560, Math.max(380, window.innerHeight * 0.7));
+    let x = rect.right + gap;
+    let y = rect.top;
 
-      previousStatusRef.current = nextStatusMap;
+    const maxX = window.innerWidth - cardWidth - margin;
+    const maxY = window.innerHeight - cardHeight - margin;
 
-      if (movedToInProgress.length === 1) {
-        const complaint = movedToInProgress[0];
-        const workerName = complaint.assignedWorker?.name || "Worker";
-        setStatusMessage(
-          `${workerName} started work. Status updated to In Progress.`
-        );
-      } else if (movedToInProgress.length > 1) {
-        setStatusMessage(
-          `${movedToInProgress.length} complaints were updated to In Progress.`
-        );
-      }
-
-      const existingIds = new Set(nextComplaints.map((c) => c._id));
-      setSelectedComplaints((prev) => {
-        const next = {};
-        Object.entries(prev).forEach(([id, isSelected]) => {
-          if (isSelected && existingIds.has(id)) {
-            next[id] = true;
-          }
-        });
-        return next;
-      });
-
-      setComplaints(nextComplaints);
-    } catch (error) {
-      console.error("Error fetching complaints", error);
+    if (x > maxX) {
+      x = Math.max(margin, rect.left - cardWidth - gap);
     }
-  }
+    y = Math.min(Math.max(margin, y), Math.max(margin, maxY));
 
-  async function fetchWorkers() {
+    setDetailsPopup({ open: true, x, y, width: cardWidth, height: cardHeight, complaint });
+  };
+
+  const fetchAdminData = async () => {
     try {
-      const res = await API.get("/admin/workers", { withCredentials: true });
-      setWorkers(res.data);
+      setLoading(true);
+      const [supervisorsRes, workersRes, citizensRes, complaintsRes, mapPinsRes] =
+        await Promise.all([
+          API.get("/admin/users/supervisor"),
+          API.get("/admin/users/worker"),
+          API.get("/admin/users/citizen"),
+          API.get("/admin/complaints"),
+          API.get("/admin/map-pins"),
+        ]);
+
+      setSupervisors(supervisorsRes.data);
+      setWorkers(workersRes.data);
+      setCitizens(citizensRes.data);
+      setComplaints(complaintsRes.data);
+      setMapPins(mapPinsRes.data);
     } catch (error) {
-      console.error("Error fetching workers", error);
+      console.error("Error loading admin dashboard data", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchComplaints();
-    fetchWorkers();
-
-    const intervalId = setInterval(() => {
-      fetchComplaints();
-    }, 8000);
-
-    return () => clearInterval(intervalId);
+    fetchAdminData();
   }, []);
 
-  const updateStatus = async (id, newStatus) => {
-    try {
-      const body = { status: newStatus };
+  const summary = useMemo(
+    () => ({
+      supervisors: supervisors.length,
+      workers: workers.length,
+      citizens: citizens.length,
+      complaints: complaints.length,
+      activePins: mapPins.length,
+    }),
+    [supervisors, workers, citizens, complaints, mapPins]
+  );
 
-      await API.patch(`/complaints/${id}/status`, body, { withCredentials: true });
-      fetchComplaints();
-    } catch (error) {
-      console.error("Error updating status", error);
-    }
-  };
+  const renderUsersTable = (rows) => (
+    <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-100 text-slate-600">
+          <tr>
+            <th className="p-3 text-left">Name</th>
+            <th className="p-3 text-left">Email</th>
+            <th className="p-3 text-left">Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row._id} className="border-t">
+              <td className="p-3">{row.name}</td>
+              <td className="p-3">{row.email}</td>
+              <td className="p-3">{row.role}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={3} className="p-6 text-center text-slate-500">
+                {loading ? "Loading..." : "No records found"}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
-  const filteredComplaints =
-    filterStatus === "All"
-      ? complaints
-      : complaints.filter((c) => c.status === filterStatus);
+  const renderComplaintsTable = () => (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+        <table className="w-full text-sm">
+        <thead className="bg-slate-100 text-slate-600">
+          <tr>
+            <th className="p-3 text-left">Title</th>
+            <th className="p-3 text-left">Category</th>
+            <th className="p-3 text-left">Status</th>
+            <th className="p-3 text-left">Citizen</th>
+            <th className="p-3 text-left">Worker</th>
+            <th className="p-3 text-left">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {complaints.map((complaint) => (
+            <tr key={complaint._id} className="border-t">
+              <td className="p-3">{complaint.title || "Untitled"}</td>
+              <td className="p-3">{complaint.category}</td>
+              <td className="p-3">{complaint.status}</td>
+              <td className="p-3">{complaint.createdBy?.name || complaint.user?.name || "-"}</td>
+              <td className="p-3">{complaint.assignedWorker?.name || "-"}</td>
+              <td className="p-3">
+                <button
+                  type="button"
+                  onClick={(event) => openDetailsPopup(complaint, event)}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  View
+                </button>
+              </td>
+            </tr>
+          ))}
+          {complaints.length === 0 && (
+            <tr>
+              <td colSpan="6" className="p-6 text-center text-slate-500">
+                {loading ? "Loading..." : "No complaints found"}
+              </td>
+            </tr>
+          )}
+        </tbody>
+        </table>
+      </div>
 
-  const selectedComplaintIds = Object.entries(selectedComplaints)
-    .filter(([, isSelected]) => isSelected)
-    .map(([id]) => id);
+      {detailsPopup.open && detailsPopup.complaint && (
+        <>
+          <div
+            className="fixed inset-0 z-[1000] bg-black/10"
+            onClick={closeDetailsPopup}
+          />
+          <div
+            className="fixed z-[1010] overflow-y-auto rounded-lg border bg-white p-4 shadow-xl"
+            style={{
+              width: detailsPopup.width,
+              height: detailsPopup.height,
+              left: detailsPopup.x,
+              top: detailsPopup.y,
+            }}
+          >
+            <div className="mb-3 flex items-start justify-between">
+              <h4 className="text-sm font-semibold text-slate-800">
+              Complaint Details
+              </h4>
+              <button
+                type="button"
+                onClick={closeDetailsPopup}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm font-semibold leading-none text-slate-700 hover:bg-slate-50"
+                aria-label="Close complaint details"
+              >
+                X
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md bg-slate-50 p-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Title</p>
+                <p className="mt-1 text-slate-800">{detailsPopup.complaint.title || "Untitled"}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md bg-slate-50 p-2.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Category</p>
+                  <p className="mt-1 text-slate-800">{detailsPopup.complaint.category || "-"}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-2.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Status</p>
+                  <p className="mt-1 text-slate-800">{detailsPopup.complaint.status || "-"}</p>
+                </div>
+              </div>
+              <div className="rounded-md bg-slate-50 p-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Description</p>
+                <p className="mt-1 line-clamp-4 text-slate-800">
+                  {detailsPopup.complaint.description || "-"}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const problemUrl = resolveImageUrl(detailsPopup.complaint.imageUrl);
+                    if (!problemUrl) return;
+                    setPhotoModal({ open: true, title: "Problem Photo", url: problemUrl });
+                  }}
+                  disabled={!resolveImageUrl(detailsPopup.complaint.imageUrl)}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View Problem Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const resolvedUrl = resolveImageUrl(
+                      detailsPopup.complaint.completionImage ||
+                        detailsPopup.complaint.proofImageUrl
+                    );
+                    if (!resolvedUrl) return;
+                    setPhotoModal({ open: true, title: "Resolved Photo", url: resolvedUrl });
+                  }}
+                  disabled={
+                    !resolveImageUrl(
+                      detailsPopup.complaint.completionImage ||
+                        detailsPopup.complaint.proofImageUrl
+                    )
+                  }
+                  className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  View Resolved Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
-  const allFilteredSelected =
-    filteredComplaints.length > 0 &&
-    filteredComplaints.every((complaint) => selectedComplaints[complaint._id]);
+      {photoModal.open && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative w-full max-w-4xl rounded-lg bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h5 className="text-sm font-semibold text-slate-800">{photoModal.title}</h5>
+              <button
+                type="button"
+                onClick={() => setPhotoModal({ open: false, title: "", url: "" })}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+            <img
+              src={photoModal.url}
+              alt={photoModal.title}
+              className="max-h-[75vh] w-full rounded-md object-contain"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
-  const toggleComplaintSelection = (complaintId) => {
-    setSelectedComplaints((prev) => ({
-      ...prev,
-      [complaintId]: !prev[complaintId],
-    }));
-  };
-
-  const toggleSelectAllFiltered = () => {
-    setSelectedComplaints((prev) => {
-      const next = { ...prev };
-      filteredComplaints.forEach((complaint) => {
-        next[complaint._id] = !allFilteredSelected;
-      });
-      return next;
-    });
-  };
-
-  const assignBulkTasks = async () => {
-    try {
-      if (!bulkWorkerId) {
-        alert("Please select a worker for bulk assignment.");
-        return;
-      }
-
-      if (selectedComplaintIds.length === 0) {
-        alert("Please select at least one complaint.");
-        return;
-      }
-
-      const res = await API.post(
-        "/admin/assign",
-        {
-          workerId: bulkWorkerId,
-          complaintIds: selectedComplaintIds,
-        },
-        { withCredentials: true }
-      );
-
-      setStatusMessage(
-        res.data?.message || `Assigned ${selectedComplaintIds.length} tasks successfully.`
-      );
-      setSelectedComplaints({});
-      fetchComplaints();
-    } catch (error) {
-      console.error("Error assigning tasks in bulk", error);
-      setStatusMessage("Bulk assignment failed. Please try again.");
-    }
-  };
-
-  const total = complaints.length;
-  const submitted = complaints.filter((c) => c.status === "Submitted").length;
-  const assigned = complaints.filter((c) => c.status === "Assigned").length;
-  const inProgress = complaints.filter((c) => c.status === "In Progress").length;
-  const completed = complaints.filter((c) => c.status === "Completed").length;
-  const approved = complaints.filter((c) => c.status === "Approved").length;
-  const rejected = complaints.filter((c) => c.status === "Rejected").length;
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Submitted":
-        return "bg-amber-50 text-amber-700";
-      case "Assigned":
-        return "bg-indigo-50 text-indigo-700";
-      case "In Progress":
-        return "bg-blue-50 text-blue-700";
-      case "Completed":
-        return "bg-green-50 text-green-700";
-      case "Approved":
-        return "bg-emerald-50 text-emerald-700";
-      case "Rejected":
-        return "bg-red-50 text-red-700";
-      default:
-        return "bg-slate-100 text-slate-700";
-    }
+  const listTitleByTab = {
+    Supervisors: "Supervisors List",
+    Workers: "Workers List",
+    Citizens: "Citizens List",
+    Complaints: "Complaints List",
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">
-          Admin Complaint Management
-        </h1>
-
-        {statusMessage && (
-          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            {statusMessage}
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto grid max-w-7xl grid-cols-12 gap-6">
+        <aside className="col-span-12 rounded-lg border bg-white p-4 shadow-sm md:col-span-3 lg:col-span-2">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Admin Dashboard
+          </h2>
+          <div className="space-y-2">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+                  activeTab === tab
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
-        )}
+        </aside>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-          {[
-            { label: "Total", value: total },
-            { label: "Submitted", value: submitted },
-            { label: "Assigned", value: assigned },
-            { label: "In Progress", value: inProgress },
-            { label: "Completed", value: completed },
-            { label: "Approved", value: approved },
-            { label: "Rejected", value: rejected },
-          ].map((item, i) => (
-            <div key={i} className="bg-white p-4 rounded-lg border shadow-sm">
-              <p className="text-xs text-slate-500">{item.label}</p>
-              <p className="text-xl font-bold text-slate-900">{item.value}</p>
+        <main className="col-span-12 space-y-6 md:col-span-9 lg:col-span-10">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
+              <p className="text-xs text-slate-500">Supervisors</p>
+              <p className="text-xl font-bold">{summary.supervisors}</p>
             </div>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          {["All", ...STATUS_OPTIONS].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                filterStatus === status
-                  ? "bg-slate-900 text-white"
-                  : "bg-white border text-slate-600"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-6 rounded-lg border bg-white p-4">
-          <p className="text-sm font-semibold text-slate-800 mb-3">
-            Bulk Assign Tasks ({selectedComplaintIds.length} selected)
-          </p>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <select
-              value={bulkWorkerId}
-              onChange={(e) => setBulkWorkerId(e.target.value)}
-              className="border px-3 py-2 rounded-lg text-sm"
-            >
-              <option value="">Select worker for selected complaints</option>
-              {workers.map((w) => (
-                <option key={w._id} value={w._id}>
-                  {w.name} ({w.email})
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={assignBulkTasks}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm"
-            >
-              Assign Selected
-            </button>
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
+              <p className="text-xs text-slate-500">Workers</p>
+              <p className="text-xl font-bold">{summary.workers}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
+              <p className="text-xs text-slate-500">Citizens</p>
+              <p className="text-xl font-bold">{summary.citizens}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
+              <p className="text-xs text-slate-500">Complaints</p>
+              <p className="text-xl font-bold">{summary.complaints}</p>
+            </div>
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
+              <p className="text-xs text-slate-500">Active Pins</p>
+              <p className="text-xl font-bold">{summary.activePins}</p>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-slate-600">
-              <tr>
-                <th className="p-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={allFilteredSelected}
-                    onChange={toggleSelectAllFiltered}
-                  />
-                </th>
-                <th className="p-3 text-left">Citizen</th>
-                <th className="p-3 text-left">Description</th>
-                <th className="p-3 text-left">Status</th>
-                <th className="p-3 text-left">Completed Photo</th>
-                <th className="p-3 text-left">Update</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredComplaints.map((c) => (
-                <tr key={c._id} className="border-t">
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selectedComplaints[c._id])}
-                      onChange={() => toggleComplaintSelection(c._id)}
-                    />
-                  </td>
-                  <td className="p-3">{c.user?.name || "Unknown"}</td>
-                  <td className="p-3">{c.description}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                        c.status
-                      )}`}
-                    >
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    {c.proofImageUrl || c.completionImage ? (
-                      <a
-                        href={c.proofImageUrl || c.completionImage}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 underline text-xs"
-                      >
-                        View Photo
-                      </a>
-                    ) : (
-                      <span className="text-xs text-slate-400">Not uploaded</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <select
-                      value={c.status}
-                      onChange={(e) => updateStatus(c._id, e.target.value)}
-                      className="border px-3 py-1 rounded-lg text-sm"
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+          <MapView complaints={mapPins} />
 
-              {filteredComplaints.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center p-6 text-slate-400">
-                    No complaints found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-800">{listTitleByTab[activeTab]}</h3>
+          </div>
+
+          {activeTab === "Supervisors" && renderUsersTable(supervisors)}
+          {activeTab === "Workers" && renderUsersTable(workers)}
+          {activeTab === "Citizens" && renderUsersTable(citizens)}
+          {activeTab === "Complaints" && renderComplaintsTable()}
+        </main>
       </div>
     </div>
   );

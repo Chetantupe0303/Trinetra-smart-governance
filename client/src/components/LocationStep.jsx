@@ -1,6 +1,100 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-function LocationStep({ location, setLocation, nextStep, prevStep }) {
+function LocationStep({
+  location,
+  setLocation,
+  coordinates,
+  setCoordinates,
+  nextStep,
+  prevStep,
+}) {
+  const [geoStatus, setGeoStatus] = useState("idle");
+  const [geoError, setGeoError] = useState("");
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus("error");
+      setGeoError("Geolocation is not supported in this browser.");
+      return;
+    }
+
+    setGeoStatus("loading");
+    setGeoError("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinates({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setGeoStatus("success");
+      },
+      (error) => {
+        setCoordinates(null);
+        setGeoStatus("error");
+        setGeoError(
+          error?.message || "Location permission denied or unavailable."
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 7000,
+        maximumAge: 60000,
+      }
+    );
+  }, [setCoordinates]);
+
+  const reverseGeocode = useCallback(
+    async (lat, lng) => {
+      if (typeof lat !== "number" || typeof lng !== "number") {
+        return;
+      }
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+          {
+            headers: {
+              "Accept-Language": "en",
+            },
+          }
+        );
+        const data = await response.json();
+        if (data?.display_name) {
+          setLocation(data.display_name);
+        }
+      } catch (error) {
+        console.error("Reverse geocoding failed", error);
+      }
+    },
+    [setLocation]
+  );
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
+
+  useEffect(() => {
+    if (
+      coordinates &&
+      typeof coordinates.lat === "number" &&
+      typeof coordinates.lng === "number"
+    ) {
+      reverseGeocode(coordinates.lat, coordinates.lng);
+    }
+  }, [coordinates, reverseGeocode]);
+
+  const mapSrc = useMemo(() => {
+    if (
+      coordinates &&
+      typeof coordinates.lat === "number" &&
+      typeof coordinates.lng === "number"
+    ) {
+      return `https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}&z=17&output=embed`;
+    }
+    const encodedAddress = encodeURIComponent(location || "");
+    return `https://www.google.com/maps?q=${encodedAddress}&output=embed`;
+  }, [coordinates, location]);
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
 
@@ -113,6 +207,31 @@ function LocationStep({ location, setLocation, nextStep, prevStep }) {
               />
             </div>
 
+            <div className="mb-4 px-1 text-[11px] font-medium text-gray-600 space-y-1">
+              <p>
+                Latitude:{" "}
+                {coordinates?.lat !== undefined ? coordinates.lat : "Not available"}
+              </p>
+              <p>
+                Longitude:{" "}
+                {coordinates?.lng !== undefined ? coordinates.lng : "Not available"}
+              </p>
+              {geoStatus === "loading" && (
+                <p className="text-blue-600">Fetching current coordinates...</p>
+              )}
+              {geoStatus === "error" && geoError && (
+                <p className="text-red-600">{geoError}</p>
+              )}
+              <button
+                type="button"
+                onClick={requestLocation}
+                className="mt-1 inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                disabled={geoStatus === "loading"}
+              >
+                {geoStatus === "loading" ? "Locating..." : "Refresh location"}
+              </button>
+            </div>
+
             {/* Map Preview */}
             <div className="rounded-2xl overflow-hidden border-2 border-gray-200/60 shadow-lg shadow-gray-200/30 ring-1 ring-gray-100">
               <iframe
@@ -121,7 +240,7 @@ function LocationStep({ location, setLocation, nextStep, prevStep }) {
                 height="300"
                 loading="lazy"
                 className="rounded-2xl"
-                src={`https://www.google.com/maps?q=${location}&output=embed`}
+                src={mapSrc}
               ></iframe>
             </div>
 

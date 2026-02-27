@@ -12,6 +12,9 @@ function Login() {
   const navigate = useNavigate();
   const { setUser } = useContext(AuthContext);
 
+  const isSupervisorRole =
+    (role) => typeof role === "string" && (role === "supervisor" || role.startsWith("supervisor_"));
+
   const handleLogin = async () => {
     try {
       const res = await API.post("/auth/login", {
@@ -29,6 +32,8 @@ function Login() {
       setTimeout(() => {
         if (decoded.role === "admin") {
           navigate("/admin");
+        } else if (isSupervisorRole(decoded.role)) {
+          navigate("/supervisor");
         } else if (decoded.role === "worker") {
           navigate("/worker");
         } else {

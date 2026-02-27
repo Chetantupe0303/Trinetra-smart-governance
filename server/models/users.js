@@ -17,9 +17,18 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["citizen", "admin" , "worker"],
+      enum: [
+        "citizen",
+        "admin",
+        "worker",
+        "supervisor_trash",
+        "supervisor_drainage",
+        "supervisor_road",
+        "supervisor_streetlight",
+      ],
       default: "citizen"
     },
+
     credits : {
       type : Number ,
       default : 0 
@@ -28,5 +37,4 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const User = mongoose.model("User", userSchema);
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);

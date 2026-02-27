@@ -103,7 +103,7 @@ function WorkerDashboard() {
           >
             <h3 className="font-semibold text-lg">{c.category}</h3>
             <p className="text-slate-600 mt-1">{c.description}</p>
-            <p className="text-sm text-slate-400 mt-1">Location: {c.location}</p>
+            <p className="text-sm text-slate-400 mt-1">Location: {c.location?.address || c.location}</p>
 
             <p className="mt-2 text-sm font-semibold">Status: {c.status}</p>
 

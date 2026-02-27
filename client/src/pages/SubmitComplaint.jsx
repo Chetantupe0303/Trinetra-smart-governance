@@ -8,8 +8,33 @@ import DetailsStep from "../components/DetailsStep";
 import LocationStep from "../components/LocationStep";
 import ReviewStep from "../components/ReviewStep";
 
+function getCurrentCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 7000,
+        maximumAge: 60000,
+      }
+    );
+  });
+}
+
 function SubmitComplaint() {
   const { user } = useContext(AuthContext);
+  const isAdmin = user && user.role === "admin";
 
   if (user && user.role === "admin") {
     return <Navigate to="/admin" />;
@@ -20,33 +45,73 @@ function SubmitComplaint() {
   const [priority, setPriority] = useState("Medium");
   const [image, setImage] = useState(null);
   const [location, setLocation] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ added
+  const [coordinates, setCoordinates] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  if (isAdmin) {
+    return <Navigate to="/admin" />;
+  }
 
   const nextStep = () => setStep((prev) => prev + 1);
   const prevStep = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
-  if (loading) return false;
-  try {
-    setLoading(true);
+    if (loading) return false;
+    try {
+      setLoading(true);
+      // try to reuse the coordinates we obtained earlier or fall back to
+      // geolocation; capturedCoordinates is the value we should send.
+      const capturedCoordinates =
+        coordinates && coordinates.lat && coordinates.lng
+          ? coordinates
+          : await getCurrentCoordinates();
 
-    const formData = new FormData();
-    formData.append("description", description);
-    formData.append("priority", priority);
-    formData.append("location", location);
-    
-    if (image) formData.append("image", image);
-    await API.post("/complaints", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return true; // ✅ important
+      const formData = new FormData();
+      formData.append("description", description);
+      formData.append("priority", priority);
 
-  } catch (error) {
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
+      // include location metadata if we have it
+      formData.append(
+        "location",
+        JSON.stringify({
+          address: location,
+          lat: capturedCoordinates?.lat,
+          lng: capturedCoordinates?.lng,
+        })
+      );
+      formData.append("locationAddress", location || "");
+      formData.append(
+        "latitude",
+        capturedCoordinates?.lat !== undefined ? String(capturedCoordinates.lat) : ""
+      );
+      formData.append(
+        "longitude",
+        capturedCoordinates?.lng !== undefined ? String(capturedCoordinates.lng) : ""
+      );
+
+      if (image) formData.append("image", image);
+
+      await API.post("/complaints", formData);
+
+      return true;
+    } catch (error) {
+      // log the entire error object so that we can see what is actually
+      // happening; some browser extensions (React DevTools) inject a
+      // script called `installHook.js` which may report its own errors in the
+      // console, e.g. "Object overrideMethod". those messages are harmless
+      // and unrelated to our API call.
+      console.error("Failed to submit complaint:", error);
+      // optionally expose sensible pieces for debugging if it's an axios
+      // error
+      if (error?.response) {
+        console.error("response data", error.response.data);
+        console.error("response status", error.response.status);
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -71,6 +136,8 @@ function SubmitComplaint() {
           <LocationStep
             location={location}
             setLocation={setLocation}
+            coordinates={coordinates}
+            setCoordinates={setCoordinates}
             nextStep={nextStep}
             prevStep={prevStep}
           />
@@ -83,7 +150,7 @@ function SubmitComplaint() {
             location={location}
             prevStep={prevStep}
             handleSubmit={handleSubmit}
-            loading={loading}   // ✅ pass loading
+            loading={loading}   
           />
         )}
 

@@ -9,28 +9,45 @@ const errorHandler = require("./middleware/errorMiddleware");
 const cookieParser = require("cookie-parser");
 const uploadRoutes = require("./routes/uploadRoutes");
 const workerRoutes = require("./routes/workerRoutes");
-const arcjetMiddleware = require("./config/arcjet.js");
 
 
-connectDB();
+connectDB().then(async () => {
+  // correct any legacy documents that slipped through with wrong
+  // category values. This is idempotent and safe to run each start.
+  try {
+    const Complaint = require("./models/Complaint");
+    await Complaint.fixCategories();
+    console.log("Complaint categories normalized");
+  } catch (e) {
+    console.error("Error normalizing categories:", e.message);
+  }
+}).catch((e) => {
+  console.error("Database connection failed:", e.message);
+});
 
 // app.use(cors());
 const app = express();
+const allowedOrigins = [
+  "https://demo-hack-jmte.vercel.app",
+  "https://demo-hack-pwrm.vercel.app",
+  "http://localhost:5173",
+];
 
-
-
-
-
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
-const corsOptions = {
-  origin: process.env.CORS || "http://localhost:5173",
-  credentials: true,
-};
-console.log("CORS origin:", corsOptions.origin);
-app.use(cors(corsOptions));
 app.use(cookieParser());
-app.use(arcjetMiddleware);
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api", complaintRoutes);
