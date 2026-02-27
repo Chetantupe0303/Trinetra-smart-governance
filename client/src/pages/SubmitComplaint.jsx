@@ -36,6 +36,10 @@ function SubmitComplaint() {
   const { user } = useContext(AuthContext);
   const isAdmin = user && user.role === "admin";
 
+  if (user && user.role === "admin") {
+    return <Navigate to="/admin" />;
+  }
+
   const [step, setStep] = useState(1);
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -53,30 +57,36 @@ function SubmitComplaint() {
 
   const handleSubmit = async () => {
     if (loading) return false;
-
     try {
       setLoading(true);
-      const liveCoordinates = coordinates || (await getCurrentCoordinates());
+      // try to reuse the coordinates we obtained earlier or fall back to
+      // geolocation; capturedCoordinates is the value we should send.
+      const capturedCoordinates =
+        coordinates && coordinates.lat && coordinates.lng
+          ? coordinates
+          : await getCurrentCoordinates();
 
       const formData = new FormData();
       formData.append("description", description);
       formData.append("priority", priority);
+
+      // include location metadata if we have it
       formData.append(
         "location",
         JSON.stringify({
           address: location,
-          lat: liveCoordinates?.lat,
-          lng: liveCoordinates?.lng,
+          lat: capturedCoordinates?.lat,
+          lng: capturedCoordinates?.lng,
         })
       );
       formData.append("locationAddress", location || "");
       formData.append(
         "latitude",
-        liveCoordinates?.lat !== undefined ? String(liveCoordinates.lat) : ""
+        capturedCoordinates?.lat !== undefined ? String(capturedCoordinates.lat) : ""
       );
       formData.append(
         "longitude",
-        liveCoordinates?.lng !== undefined ? String(liveCoordinates.lng) : ""
+        capturedCoordinates?.lng !== undefined ? String(capturedCoordinates.lng) : ""
       );
 
       if (image) formData.append("image", image);
@@ -85,11 +95,18 @@ function SubmitComplaint() {
 
       return true;
     } catch (error) {
-      console.error("Failed to submit complaint:", {
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
-      });
+      // log the entire error object so that we can see what is actually
+      // happening; some browser extensions (React DevTools) inject a
+      // script called `installHook.js` which may report its own errors in the
+      // console, e.g. "Object overrideMethod". those messages are harmless
+      // and unrelated to our API call.
+      console.error("Failed to submit complaint:", error);
+      // optionally expose sensible pieces for debugging if it's an axios
+      // error
+      if (error?.response) {
+        console.error("response data", error.response.data);
+        console.error("response status", error.response.status);
+      }
       return false;
     } finally {
       setLoading(false);
@@ -99,6 +116,7 @@ function SubmitComplaint() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
+
         <StepIndicator step={step} />
 
         {step === 1 && (
@@ -132,9 +150,10 @@ function SubmitComplaint() {
             location={location}
             prevStep={prevStep}
             handleSubmit={handleSubmit}
-            loading={loading}
+            loading={loading}   
           />
         )}
+
       </div>
     </div>
   );

@@ -31,6 +31,26 @@ function inferCategoryFromDescription(description) {
   return undefined;
 }
 
+const FEEDBACK_RATINGS = Complaint.FEEDBACK_RATINGS || [
+  "Good",
+  "Average",
+  "Poor",
+  "Worst",
+];
+const FEEDBACK_ALLOWED_STATUSES = new Set(["Completed", "Approved"]);
+
+function normalizeFeedbackRating(rawRating) {
+  if (!rawRating || typeof rawRating !== "string") {
+    return undefined;
+  }
+  const normalized = rawRating.trim().toLowerCase();
+  return FEEDBACK_RATINGS.find(
+    (rating) => rating.toLowerCase() === normalized
+  );
+}
+
+
+
 async function geocodeAddress(address) {
   if (!address) {
     return null;
@@ -168,6 +188,7 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
+    let textResult = null;
     let imageResult = null;
 
     // // ---------------------
@@ -411,8 +432,73 @@ const updateComplaintStatus = async (req, res , next) => {
   }
 };
 
+const submitComplaintFeedback = async (req, res, next) => {
+  try {
+    const normalizedRating = normalizeFeedbackRating(req.body.rating);
+    if (!normalizedRating) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid feedback rating. Use Good, Average, Poor, or Worst.",
+      });
+    }
+
+    const complaint = await Complaint.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("assignedWorker", "name email");
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    const complaintOwnerId = String(
+      complaint.user?._id || complaint.user
+    );
+    if (complaintOwnerId !== String(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the complaint owner can submit feedback.",
+      });
+    }
+
+    if (!FEEDBACK_ALLOWED_STATUSES.has(complaint.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Feedback can be submitted only after completion.",
+      });
+    }
+
+    const trimmedComment =
+      typeof req.body.comment === "string"
+        ? req.body.comment.trim()
+        : undefined;
+
+    complaint.feedback = {
+      rating: normalizedRating,
+      comment: trimmedComment || undefined,
+      submittedAt: new Date(),
+    };
+
+    complaint.timeline.push({
+      status: complaint.status,
+      updatedBy: req.user._id,
+      note: `Citizen feedback recorded (${normalizedRating})`,
+    });
+
+    await complaint.save();
+
+    return res.json({
+      success: true,
+      message: "Feedback submitted successfully.",
+      complaint,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createComplaint,
   getAllComplaints,
   updateComplaintStatus,
+  submitComplaintFeedback,
 };

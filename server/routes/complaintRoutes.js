@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/authMiddleware");
+
+const { protect, adminOnly } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
 const { complaintScope } = require("../middleware/complaintScopeMiddleware");
 
@@ -14,12 +15,31 @@ const {
   createComplaint,
   getAllComplaints,
   updateComplaintStatus,
-} = require("../controller/complaintController"); // ✅ FIXED
+  submitComplaintFeedback,
+} = require("../controller/complaintController");
+
 const { getWorkers } = require("../controller/adminController");
 
-router.post("/complaints", protect, upload.single("image"), createComplaint);
+/* ===================== CREATE ===================== */
 
-router.get("/complaints", protect, complaintScope, getAllComplaints);
+router.post(
+  "/complaints",
+  protect,
+  upload.single("image"),
+  createComplaint
+);
+
+/* ===================== GET ===================== */
+
+router.get(
+  "/complaints",
+  protect,
+  complaintScope,
+  getAllComplaints
+);
+
+/* ===================== GET WORKERS ===================== */
+
 router.get(
   "/complaints/workers",
   protect,
@@ -33,6 +53,8 @@ router.get(
   ),
   getWorkers
 );
+
+/* ===================== UPDATE STATUS ===================== */
 
 router.patch(
   "/complaints/:id/status",
@@ -49,27 +71,41 @@ router.patch(
   updateComplaintStatus
 );
 
+/* ===================== FEEDBACK ===================== */
+
+router.post(
+  "/complaints/:id/feedback",
+  protect,
+  submitComplaintFeedback
+);
+
+/* ===================== WORKER UPDATE ===================== */
+
 router.patch("/:id/worker-update", protect, async (req, res) => {
-  const complaint = await Complaint.findById(req.params.id);
+  try {
+    const complaint = await Complaint.findById(req.params.id);
 
-  if (!complaint)
-    return res.status(404).json({ message: "Not found" });
+    if (!complaint)
+      return res.status(404).json({ message: "Not found" });
 
-  complaint.status = req.body.status;
+    complaint.status = req.body.status;
 
-  if (req.body.completionImage) {
-    complaint.completionImage = req.body.completionImage;
-    complaint.completedAt = new Date();
+    if (req.body.completionImage) {
+      complaint.completionImage = req.body.completionImage;
+      complaint.completedAt = new Date();
+    }
+
+    complaint.timeline.push({
+      status: req.body.status,
+      updatedBy: req.user._id,
+    });
+
+    await complaint.save();
+
+    res.json({ message: "Updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
   }
-
-  complaint.timeline.push({
-    status: req.body.status,
-    updatedBy: req.user._id, // 🔥 use _id now
-  });
-
-  await complaint.save();
-
-  res.json({ message: "Updated successfully" });
 });
 
 module.exports = router;

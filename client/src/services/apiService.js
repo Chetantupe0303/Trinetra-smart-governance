@@ -6,6 +6,7 @@ const API = axios.create({
   // but the value can be changed via VITE_API_URL in .env.local etc.
   baseURL:
     import.meta.env.VITE_API_URL || "http://127.0.0.1:5001/api",
+    withCredentials : true ,
 });
 
 API.interceptors.request.use((req) => {

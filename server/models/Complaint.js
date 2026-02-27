@@ -1,23 +1,27 @@
 const mongoose = require("mongoose");
 
-// a simple mapping used for normalizing incoming text and for fix‑ups
+/* ---------------- CATEGORY NORMALIZATION ---------------- */
+
 const CATEGORY_MAP = {
   drainage: "Drainage",
   drain: "Drainage",
   water: "Drainage",
   sewage: "Drainage",
   sewer: "Drainage",
+
   road_damage: "Road_Damage",
   "road damage": "Road_Damage",
   road: "Road_Damage",
   pothole: "Road_Damage",
   potholes: "Road_Damage",
+
   street_light: "Street_Light",
   "street light": "Street_Light",
   streetlight: "Street_Light",
   electricity: "Street_Light",
   electric: "Street_Light",
   light: "Street_Light",
+
   trash: "Trash",
   garbage: "Trash",
   sanitation: "Trash",
@@ -32,20 +36,16 @@ const SUPERVISOR_ROLE_BY_CATEGORY = {
   Trash: "supervisor_trash",
 };
 
-// return the canonical value from the map, or undefined if the input
-// doesn't match any known key. this is what the controller should use
-// to validate user‑supplied data.
+const FEEDBACK_RATINGS = ["Good", "Average", "Poor", "Worst"];
+
+/* ---------------- HELPERS ---------------- */
+
 function canonicalCategory(rawCategory) {
-  if (!rawCategory || typeof rawCategory !== "string") {
-    return undefined;
-  }
+  if (!rawCategory || typeof rawCategory !== "string") return undefined;
   const normalized = rawCategory.trim().toLowerCase();
   return CATEGORY_MAP[normalized];
 }
 
-// general normalizer that returns a usable category string even when
-// the input is already canonical or not recognized. used by the
-// schema setter so that we don't accidentally wipe out an odd value.
 function normalizeCategory(rawCategory) {
   const canon = canonicalCategory(rawCategory);
   return canon !== undefined ? canon : rawCategory;
@@ -55,6 +55,8 @@ function supervisorRoleForCategory(rawCategory) {
   const normalized = canonicalCategory(rawCategory) || rawCategory;
   return SUPERVISOR_ROLE_BY_CATEGORY[normalized];
 }
+
+/* ---------------- SCHEMA ---------------- */
 
 const complaintSchema = new mongoose.Schema(
   {
@@ -87,7 +89,7 @@ const complaintSchema = new mongoose.Schema(
     category: {
       type: String,
       enum: ["Drainage", "Road_Damage", "Street_Light", "Trash"],
-      set: normalizeCategory, // automatically normalize before saving
+      set: normalizeCategory,
     },
 
     assignedSupervisorRole: {
@@ -121,7 +123,6 @@ const complaintSchema = new mongoose.Schema(
       default: "Submitted",
     },
 
-    // ✅ Only this worker field is needed
     assignedWorker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -164,31 +165,28 @@ const complaintSchema = new mongoose.Schema(
         },
       },
     ],
+
+    feedback: {
+      rating: {
+        type: String,
+        enum: FEEDBACK_RATINGS,
+      },
+      comment: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+      },
+      submittedAt: {
+        type: Date,
+      },
+    },
   },
   { timestamps: true }
 );
 
-// expose helpers so other parts of the app can reuse the same logic
-complaintSchema.statics.normalizeCategory = normalizeCategory;
-complaintSchema.statics.canonicalCategory = canonicalCategory;
-complaintSchema.statics.supervisorRoleForCategory = supervisorRoleForCategory;
-complaintSchema.statics.CATEGORY_MAP = CATEGORY_MAP;
-complaintSchema.statics.SUPERVISOR_ROLE_BY_CATEGORY = SUPERVISOR_ROLE_BY_CATEGORY;
+/* ---------------- COMPATIBILITY SYNC ---------------- */
 
-// utility to scan and correct existing documents that have a non‑standard category
-complaintSchema.statics.fixCategories = async function () {
-  const allowed = Object.values(CATEGORY_MAP);
-  const docs = await this.find({ category: { $nin: allowed } });
-  for (const doc of docs) {
-    const fixed = normalizeCategory(doc.category);
-    if (fixed && fixed !== doc.category) {
-      doc.category = fixed;
-      await doc.save();
-    }
-  }
-};
-
-complaintSchema.pre("save", function syncCompatibilityFields() {
+complaintSchema.pre("save", function () {
   if (!this.createdBy && this.user) {
     this.createdBy = this.user;
   }
@@ -210,9 +208,19 @@ complaintSchema.pre("save", function syncCompatibilityFields() {
   }
 
   if (!this.assignedSupervisorRole && this.category) {
-    this.assignedSupervisorRole = supervisorRoleForCategory(this.category) || null;
+    this.assignedSupervisorRole =
+      supervisorRoleForCategory(this.category) || null;
   }
-
 });
+
+/* ---------------- STATIC HELPERS ---------------- */
+
+complaintSchema.statics.normalizeCategory = normalizeCategory;
+complaintSchema.statics.canonicalCategory = canonicalCategory;
+complaintSchema.statics.supervisorRoleForCategory = supervisorRoleForCategory;
+complaintSchema.statics.CATEGORY_MAP = CATEGORY_MAP;
+complaintSchema.statics.SUPERVISOR_ROLE_BY_CATEGORY =
+  SUPERVISOR_ROLE_BY_CATEGORY;
+complaintSchema.statics.FEEDBACK_RATINGS = FEEDBACK_RATINGS;
 
 module.exports = mongoose.model("Complaint", complaintSchema);

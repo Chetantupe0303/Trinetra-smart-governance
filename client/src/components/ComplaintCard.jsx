@@ -1,8 +1,42 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import API from "../services/apiService";
 
 const SERVER_BASE = "http://127.0.0.1:4000";
+const FEEDBACK_OPTIONS = ["Good", "Average", "Poor", "Worst"];
 
 function ComplaintCard({ complaint }) {
+  const [feedbackRating, setFeedbackRating] = useState(
+    complaint.feedback?.rating || ""
+  );
+  const [feedbackError, setFeedbackError] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  useEffect(() => {
+    setFeedbackRating(complaint.feedback?.rating || "");
+  }, [complaint.feedback?.rating, complaint._id]);
+
+  const canSubmitFeedback = ["Completed", "Approved"].includes(
+    complaint.status
+  );
+
+  const handleFeedback = async (rating) => {
+    if (!canSubmitFeedback || submittingFeedback || rating === feedbackRating) {
+      return;
+    }
+
+    try {
+      setSubmittingFeedback(true);
+      setFeedbackError("");
+      await API.post(`/complaints/${complaint._id}/feedback`, { rating });
+      setFeedbackRating(rating);
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Unable to submit feedback.";
+      setFeedbackError(message);
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
   const statusConfig = {
     Pending: {
       bg: "bg-amber-50",
@@ -172,6 +206,56 @@ function ComplaintCard({ complaint }) {
           </span>
         </div>
       </div>
+
+      {(canSubmitFeedback || feedbackRating) && (
+        <div className="px-6 py-4 border-t border-slate-100 bg-white">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-slate-500 tracking-wide uppercase">
+              Resolution Feedback
+            </p>
+            {feedbackRating && !canSubmitFeedback && (
+              <span className="text-xs font-semibold text-slate-600">
+                {feedbackRating}
+              </span>
+            )}
+          </div>
+
+          {canSubmitFeedback ? (
+            <div className="flex flex-wrap gap-2">
+              {FEEDBACK_OPTIONS.map((option) => {
+                const isActive = feedbackRating === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    disabled={submittingFeedback}
+                    onClick={() => handleFeedback(option)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-200 ${
+                      isActive
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                    } ${submittingFeedback ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          ) : feedbackRating ? (
+            <span className="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+              {feedbackRating}
+            </span>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Feedback can be shared once the task is completed.
+            </p>
+          )}
+
+          {feedbackError && (
+            <p className="text-xs text-red-500 mt-2">{feedbackError}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
