@@ -41,7 +41,8 @@ function SubmitComplaint() {
   const [priority, setPriority] = useState("Medium");
   const [image, setImage] = useState(null);
   const [location, setLocation] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ added
+  const [coordinates, setCoordinates] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   if (isAdmin) {
     return <Navigate to="/admin" />;
@@ -55,7 +56,7 @@ function SubmitComplaint() {
 
     try {
       setLoading(true);
-      const coordinates = await getCurrentCoordinates();
+      const liveCoordinates = coordinates || (await getCurrentCoordinates());
 
       const formData = new FormData();
       formData.append("description", description);
@@ -64,14 +65,22 @@ function SubmitComplaint() {
         "location",
         JSON.stringify({
           address: location,
-          lat: coordinates?.lat,
-          lng: coordinates?.lng,
+          lat: liveCoordinates?.lat,
+          lng: liveCoordinates?.lng,
         })
+      );
+      formData.append("locationAddress", location || "");
+      formData.append(
+        "latitude",
+        liveCoordinates?.lat !== undefined ? String(liveCoordinates.lat) : ""
+      );
+      formData.append(
+        "longitude",
+        liveCoordinates?.lng !== undefined ? String(liveCoordinates.lng) : ""
       );
 
       if (image) formData.append("image", image);
 
-      // Let the browser/axios set the multipart boundary automatically.
       await API.post("/complaints", formData);
 
       return true;
@@ -90,7 +99,6 @@ function SubmitComplaint() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow">
-
         <StepIndicator step={step} />
 
         {step === 1 && (
@@ -110,6 +118,8 @@ function SubmitComplaint() {
           <LocationStep
             location={location}
             setLocation={setLocation}
+            coordinates={coordinates}
+            setCoordinates={setCoordinates}
             nextStep={nextStep}
             prevStep={prevStep}
           />
@@ -122,10 +132,9 @@ function SubmitComplaint() {
             location={location}
             prevStep={prevStep}
             handleSubmit={handleSubmit}
-            loading={loading}   // ✅ pass loading
+            loading={loading}
           />
         )}
-
       </div>
     </div>
   );

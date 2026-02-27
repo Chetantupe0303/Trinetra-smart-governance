@@ -69,8 +69,29 @@ async function geocodeAddress(address) {
   }
 }
 
-async function buildLocationPayload(rawLocation) {
+async function buildLocationPayload(rawLocation, rawLatitude, rawLongitude, rawAddress) {
+  const latFromBody = Number(rawLatitude);
+  const lngFromBody = Number(rawLongitude);
+  const addressFromBody =
+    typeof rawAddress === "string" && rawAddress.trim() ? rawAddress.trim() : "";
+
+  if (Number.isFinite(latFromBody) && Number.isFinite(lngFromBody)) {
+    return {
+      address: addressFromBody || undefined,
+      lat: latFromBody,
+      lng: lngFromBody,
+    };
+  }
+
   if (!rawLocation) {
+    if (addressFromBody) {
+      const geocoded = await geocodeAddress(addressFromBody);
+      return {
+        address: addressFromBody,
+        lat: geocoded?.lat,
+        lng: geocoded?.lng,
+      };
+    }
     return undefined;
   }
 
@@ -110,10 +131,11 @@ async function buildLocationPayload(rawLocation) {
       };
     }
 
-    if (address) {
-      const geocoded = await geocodeAddress(address);
+    if (address || addressFromBody) {
+      const finalAddress = address || addressFromBody;
+      const geocoded = await geocodeAddress(finalAddress);
       return {
-        address,
+        address: finalAddress,
         lat: geocoded?.lat,
         lng: geocoded?.lng,
       };
@@ -210,7 +232,12 @@ const createComplaint = async (req, res, next) => {
     // ---------------------
     // SAVE TO DATABASE
     // ---------------------
-    const locationPayload = await buildLocationPayload(req.body.location);
+    const locationPayload = await buildLocationPayload(
+      req.body.location,
+      req.body.latitude,
+      req.body.longitude,
+      req.body.locationAddress
+    );
 
     const complaintPayload = {
       title:
