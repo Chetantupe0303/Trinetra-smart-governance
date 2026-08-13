@@ -1,7 +1,26 @@
+# Node.js dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+dist/
+client/dist/
+
+# Python virtual environments and caches
+venv/
+.venv/
+flask/venv/
+face-rec/venv/
+**/venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
 flask/python/dataset
 flask/python/dataset.zip
-flask/python/.env
 
+# Environment variables / secrets
 .env
+server/.env
+client/.env
 flask/.env
-node_modules
+face-rec/.env
+flask/python/.env

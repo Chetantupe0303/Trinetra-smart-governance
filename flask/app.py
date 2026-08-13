@@ -8,9 +8,14 @@ from huggingface_hub import snapshot_download
 import os
 import sys
 import requests
+import cv2
+import numpy as np
 from dotenv import load_dotenv
+from utils.facenet_engine import FaceNetEngine
 
 load_dotenv()
+
+engine = FaceNetEngine()
 
 app = Flask(__name__)
 # Allow requests from the Vite dev server if needed

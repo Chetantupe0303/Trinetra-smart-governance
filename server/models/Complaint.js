@@ -223,4 +223,19 @@ complaintSchema.statics.SUPERVISOR_ROLE_BY_CATEGORY =
   SUPERVISOR_ROLE_BY_CATEGORY;
 complaintSchema.statics.FEEDBACK_RATINGS = FEEDBACK_RATINGS;
 
+complaintSchema.statics.fixCategories = async function () {
+  const complaints = await this.find({});
+  for (const doc of complaints) {
+    let changed = false;
+    const norm = normalizeCategory(doc.category);
+    if (norm && norm !== doc.category) {
+      doc.category = norm;
+      changed = true;
+    }
+    if (changed) {
+      await doc.save();
+    }
+  }
+};
+
 module.exports = mongoose.model("Complaint", complaintSchema);
