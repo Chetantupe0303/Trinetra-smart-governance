@@ -2,5 +2,25 @@
   "dependencies": {
     "form-data": "^4.0.5",
     "nodemon": "^3.1.14"
-  }
+  },
+  "name": "trinetra-smart-governance",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "start": "npm --prefix server run dev",
+    "dev": "npm --prefix server run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chetantupe0303/Trinetra-smart-governance.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Chetantupe0303/Trinetra-smart-governance/issues"
+  },
+  "homepage": "https://github.com/Chetantupe0303/Trinetra-smart-governance#readme"
 }

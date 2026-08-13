@@ -4,3 +4,4 @@ flask/python/.env
 
 .env
 flask/.env
+node_modules
