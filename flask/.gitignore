@@ -3,3 +3,31 @@ python/dataset.zip
 .env
 __pycache__
 utils/__pycache__
+
+
+# Python virtual environment
+venv/
+.venv/
+**/venv/
+**/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# Build files
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
