@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+/* ============================================
+   TRINETRA DESIGN SYSTEM
+   Civic Infrastructure Theme
+   ============================================ */
+@theme {
+  /* Brand colors */
+  --color-indigo-deep: #1E1B4B;
+  --color-indigo-brand: #3730A3;
+  --color-indigo-50: #EEF0FC;
+  --color-indigo-100: #E0E1F9;
+  --color-indigo-200: #C3C5F3;
+  --color-indigo-300: #9EA2EA;
+  --color-indigo-400: #7A7EDF;
+  --color-indigo-500: #5B5ED0;
+  --color-indigo-600: #3730A3;
+  --color-indigo-700: #2E2985;
+  --color-indigo-800: #241F67;
+  --color-indigo-900: #1E1B4B;
+
+  --color-saffron: #F59E0B;
+  --color-saffron-50: #FFFAEB;
+  --color-saffron-100: #FEF0C7;
+  --color-saffron-200: #FDE1A3;
+  --color-saffron-400: #F5A623;
+  --color-saffron-500: #F59E0B;
+  --color-saffron-600: #D97F06;
+  --color-saffron-700: #B15F05;
+
+  --color-ivory: #FAFAF9;
+  --color-ivory-dim: #F2F1EE;
+
+  /* Fonts */
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Animations */
+  --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.5s ease both;
+  --animate-scale-in: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-count-up: count-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-draw: draw 1s ease forwards;
+  --animate-marquee: marquee 28s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-14px) rotate(2deg); }
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 0.8; }
+    80%, 100% { transform: scale(1.6); opacity: 0; }
+  }
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: var(--draw-length, 300); }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  min-height: 100vh;
+  background: var(--color-ivory);
+  color: #1E1B4B;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Staggered reveal utility: children fade up in sequence */
+.stagger-children > * {
+  animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+
+/* Shimmer skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #EEF0FC 25%, #E0E1F9 37%, #EEF0FC 63%);
+  background-size: 400% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+/* Focus ring, accessible */
+:focus-visible {
+  outline: 2px solid var(--color-saffron);
+  outline-offset: 2px;
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom scrollbar for civic-tech feel */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-indigo-200);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-indigo-300); }
+
+/* Leaflet marker pulse (used by MapView) */
+.pin-pulse {
+  position: relative;
+}
+.pin-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background: currentColor;
+}
