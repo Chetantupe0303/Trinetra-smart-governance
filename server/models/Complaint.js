@@ -222,5 +222,21 @@ complaintSchema.statics.CATEGORY_MAP = CATEGORY_MAP;
 complaintSchema.statics.SUPERVISOR_ROLE_BY_CATEGORY =
   SUPERVISOR_ROLE_BY_CATEGORY;
 complaintSchema.statics.FEEDBACK_RATINGS = FEEDBACK_RATINGS;
+complaintSchema.statics.fixCategories = async function () {
+  const complaints = await this.find({});
 
+  let updatedCount = 0;
+
+  for (const complaint of complaints) {
+    const canonical = canonicalCategory(complaint.category);
+
+    if (canonical && complaint.category !== canonical) {
+      complaint.category = canonical;
+      await complaint.save();
+      updatedCount++;
+    }
+  }
+
+  return updatedCount;
+};
 module.exports = mongoose.model("Complaint", complaintSchema);

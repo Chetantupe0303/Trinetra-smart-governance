@@ -276,24 +276,41 @@ const createComplaint = async (req, res, next) => {
     };
 
     if (req.file && req.file.buffer) {
-      // Persist image in DB as a Data URL and upload to Cloudinary
-      const mime = req.file.mimetype || "image/jpeg";
-      const base64 = req.file.buffer.toString("base64");
-      const dataUri = `data:${mime};base64,${base64}`;
-      complaintPayload.image = {
-        data: dataUri,
-        contentType: mime,
-      };
-      try {
-        const uploadRes = await cloudinary.uploader.upload(dataUri, {
-          folder: "complaints",
-          resource_type: "image",
-        });
-        complaintPayload.imageUrl = uploadRes.secure_url;
-      } catch (e) {
-        console.error("Cloudinary upload failed:", e.response?.data || e.message);
-      }
-    }
+  const mime = req.file.mimetype || "image/jpeg";
+  const base64 = req.file.buffer.toString("base64");
+  const dataUri = `data:${mime};base64,${base64}`;
+
+  try {
+    // Upload citizen's original/problem photo to Cloudinary
+    const uploadRes = await cloudinary.uploader.upload(dataUri, {
+      folder: "complaints",
+      resource_type: "image",
+    });
+
+    // Save the Cloudinary URL
+    complaintPayload.imageUrl = uploadRes.secure_url;
+
+    // Optional backup in MongoDB
+    complaintPayload.image = {
+      data: dataUri,
+      contentType: mime,
+    };
+
+  } catch (e) {
+    console.error(
+      "Citizen image upload failed:",
+      e.response?.data || e.message
+    );
+
+    // IMPORTANT:
+    // Do not create a complaint if the uploaded image
+    // could not be stored successfully.
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload complaint image. Please try again.",
+    });
+  }
+}
 
     const complaint = await Complaint.create(complaintPayload);
     
