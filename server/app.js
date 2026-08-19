@@ -12,7 +12,7 @@ const workerRoutes = require("./routes/workerRoutes");
 
 
 connectDB().then(async () => {
-  // correct any legacy documents that slipped through with wrong
+  // correct any legacy documents that slipped through with wrongg .
   // category values. This is idempotent and safe to run each start.
   try {
     const Complaint = require("./models/Complaint");
